@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cloudService } from '@/services/cloud-integration';
@@ -28,7 +29,7 @@ export const useCloudData = () => {
   });
 
   // Query para recursos do banco de dados
-  const { data: resourcesData, isLoading: resourcesLoading, error: resourcesError, refetch: refetchResources } = useQuery({
+  const { data: rawResourcesData, isLoading: resourcesLoading, error: resourcesError, refetch: refetchResources } = useQuery({
     queryKey: ['cloudResources', getConnectedProviders()],
     queryFn: () => supabaseCloudService.getResources(),
     enabled: getConnectedProviders().length > 0,
@@ -42,6 +43,40 @@ export const useCloudData = () => {
     enabled: getConnectedProviders().length > 0,
     refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
   });
+
+  // Correlacionar dados de recursos com custos por serviço
+  const resourcesData = rawResourcesData ? rawResourcesData.map(resource => {
+    let resourceCost = 0;
+    
+    if (costData) {
+      // Buscar custos relacionados ao tipo/serviço do recurso
+      Object.values(costData).flat().forEach(cost => {
+        const resourceType = resource.type.toLowerCase();
+        const costService = cost.service.toLowerCase();
+        
+        // Mapear tipos de recursos para serviços de custo
+        const isRelated = 
+          (resourceType.includes('compute') && costService.includes('compute')) ||
+          (resourceType.includes('virtualmachines') && costService.includes('compute')) ||
+          (resourceType.includes('storage') && costService.includes('storage')) ||
+          (resourceType.includes('network') && costService.includes('network')) ||
+          (resourceType.includes('database') && (costService.includes('database') || costService.includes('mysql') || costService.includes('postgresql'))) ||
+          (resourceType.includes('cache') && costService.includes('cache')) ||
+          (resourceType.includes('eventhub') && costService.includes('eventhub')) ||
+          (resourceType.includes('logic') && costService.includes('logic')) ||
+          (resourceType.includes('web') && costService.includes('web'));
+        
+        if (isRelated && cost.region === resource.region) {
+          resourceCost += cost.amount;
+        }
+      });
+    }
+    
+    return {
+      ...resource,
+      cost: resourceCost > 0 ? resourceCost : 0
+    };
+  }) : [];
 
   // Função para sincronizar dados dos provedores com o banco
   const syncCloudData = async () => {
@@ -123,7 +158,8 @@ export const useCloudData = () => {
 
   const budgetUtilization = totalBudget > 0 ? (totalBudgetSpent / totalBudget) * 100 : 0;
 
-  const totalResources = (resourcesData || []).length;
+  const totalResources = resourcesData.length;
+  const totalResourcesCost = resourcesData.reduce((sum, resource) => sum + (resource.cost || 0), 0);
 
   const connectedProviders = getConnectedProviders();
 
@@ -141,19 +177,20 @@ export const useCloudData = () => {
       });
     }
     if (resourcesData) {
-      console.log('Resources data received from database:', resourcesData);
+      console.log('Resources data received and processed with costs:', resourcesData);
       console.log('Total resources:', totalResources);
+      console.log('Total resources cost:', totalResourcesCost);
     }
     if (budgetsData) {
       console.log('Budgets data received from database:', budgetsData);
       console.log('Total budget:', totalBudget);
     }
-  }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget, dateRange]);
+  }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget, totalResourcesCost, dateRange]);
 
   return {
     // Data
     costData: costData || {},
-    resourcesData: resourcesData || [],
+    resourcesData,
     budgetsData: budgetsData || [],
     
     // Loading states
@@ -175,6 +212,7 @@ export const useCloudData = () => {
     totalBudgetSpent,
     budgetUtilization,
     totalResources,
+    totalResourcesCost,
     connectedProviders,
     
     // Date range control
