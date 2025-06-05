@@ -11,7 +11,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@azure/arm-consumption": "^9.2.0",
+    "@azure/arm-resources": "^6.1.0",
     "@google-cloud/billing": "^5.0.1",
+    "@google-cloud/resource-manager": "^6.1.0",
     "@hookform/resolvers": "^3.9.0",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
@@ -42,6 +45,7 @@
     "@radix-ui/react-tooltip": "^1.1.4",
     "@supabase/supabase-js": "^2.49.10",
     "@tanstack/react-query": "^5.56.2",
+    "aws-sdk": "^2.1692.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
