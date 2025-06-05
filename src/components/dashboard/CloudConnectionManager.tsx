@@ -7,15 +7,24 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cloudService } from '@/services/cloud-integration';
 import { CloudCredentials } from '@/types/cloud-providers';
-import { Cloud, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Cloud, CheckCircle, XCircle, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCloudConnections } from '@/hooks/useCloudConnections';
 
 export const CloudConnectionManager = () => {
   const [awsCredentials, setAwsCredentials] = useState<Partial<CloudCredentials>>({});
   const [azureCredentials, setAzureCredentials] = useState<Partial<CloudCredentials>>({});
   const [gcpCredentials, setGcpCredentials] = useState<Partial<CloudCredentials>>({});
-  const [connectionStatus, setConnectionStatus] = useState<Record<string, boolean | null>>({});
-  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
+  
+  const { 
+    connectionStatus, 
+    isLoading, 
+    setIsLoading, 
+    saveConnection, 
+    removeConnection,
+    getConnectedProviders 
+  } = useCloudConnections();
+  
   const { toast } = useToast();
 
   const handleConnect = async (provider: 'aws' | 'azure' | 'gcp', credentials: Partial<CloudCredentials>) => {
@@ -24,13 +33,21 @@ export const CloudConnectionManager = () => {
     try {
       cloudService.addProvider(provider, { ...credentials, provider } as CloudCredentials);
       const testResult = await cloudService.testAllConnections();
-      setConnectionStatus({ ...connectionStatus, [provider]: testResult[provider] });
+      const isConnected = testResult[provider];
       
-      if (testResult[provider]) {
+      // Save connection to localStorage
+      saveConnection(provider, { ...credentials, provider } as CloudCredentials, isConnected);
+      
+      if (isConnected) {
         toast({
           title: "Conexão bem-sucedida",
           description: `Conectado com sucesso ao ${provider.toUpperCase()}`,
         });
+        
+        // Clear credentials form
+        if (provider === 'aws') setAwsCredentials({});
+        if (provider === 'azure') setAzureCredentials({});
+        if (provider === 'gcp') setGcpCredentials({});
       } else {
         toast({
           title: "Erro de conexão",
@@ -40,7 +57,7 @@ export const CloudConnectionManager = () => {
       }
     } catch (error) {
       console.error(`Failed to connect to ${provider}:`, error);
-      setConnectionStatus({ ...connectionStatus, [provider]: false });
+      saveConnection(provider, { ...credentials, provider } as CloudCredentials, false);
       toast({
         title: "Erro de conexão",
         description: `Erro ao conectar: ${error}`,
@@ -49,6 +66,14 @@ export const CloudConnectionManager = () => {
     } finally {
       setIsLoading({ ...isLoading, [provider]: false });
     }
+  };
+
+  const handleDisconnect = (provider: string) => {
+    removeConnection(provider);
+    toast({
+      title: "Provedor desconectado",
+      description: `Desconectado do ${provider.toUpperCase()}`,
+    });
   };
 
   const getStatusBadge = (provider: string) => {
@@ -66,10 +91,20 @@ export const CloudConnectionManager = () => {
 
     if (status === true) {
       return (
-        <Badge className="bg-green-100 text-green-700">
-          <CheckCircle className="h-3 w-3 mr-1" />
-          Conectado
-        </Badge>
+        <div className="flex items-center space-x-2">
+          <Badge className="bg-green-100 text-green-700">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Conectado
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDisconnect(provider)}
+            className="h-6 px-2"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
       );
     }
 
@@ -93,8 +128,18 @@ export const CloudConnectionManager = () => {
           <CardTitle>Conexões com Provedores de Nuvem</CardTitle>
         </div>
         <CardDescription>
-          Configure as credenciais para conectar com AWS, Azure e Google Cloud Platform usando APIs reais
+          Configure as credenciais para conectar com AWS, Azure e Google Cloud Platform
         </CardDescription>
+        {getConnectedProviders().length > 0 && (
+          <div className="flex items-center space-x-2 mt-2">
+            <span className="text-sm text-muted-foreground">Provedores conectados:</span>
+            {getConnectedProviders().map(provider => (
+              <Badge key={provider} variant="outline" className="capitalize">
+                {provider}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="aws" className="space-y-6">
