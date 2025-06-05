@@ -1,4 +1,3 @@
-
 import { CloudCredentials, CostData, ResourceData, BudgetData } from '@/types/cloud-providers';
 import { CostManagementClient } from '@azure/arm-costmanagement';
 import { ResourceManagementClient } from '@azure/arm-resources';
@@ -19,12 +18,7 @@ export class AzureConnector {
       credentials.clientSecret!
     );
 
-    this.costManagementClient = new CostManagementClient(
-      this.credential,
-      {
-        subscriptionId: credentials.subscriptionId!
-      }
-    );
+    this.costManagementClient = new CostManagementClient(this.credential);
 
     this.resourceClient = new ResourceManagementClient(
       this.credential,
