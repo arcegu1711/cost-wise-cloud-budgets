@@ -18,142 +18,165 @@ export class GCPConnector {
   }
 
   async getCostData(startDate: string, endDate: string): Promise<CostData[]> {
-    try {
-      console.log('Fetching real GCP cost data from', startDate, 'to', endDate);
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 700));
+    
+    console.log('Fetching simulated GCP cost data from', startDate, 'to', endDate);
+    
+    // Generate realistic mock data
+    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const services = ['Compute Engine', 'Cloud Storage', 'Cloud SQL', 'Cloud Functions', 'Cloud CDN', 'Cloud Load Balancing'];
+    const regions = ['us-central1', 'us-east1', 'europe-west1'];
+    
+    const costData: CostData[] = [];
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(new Date(startDate).getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
       
-      const { CloudBillingClient } = await import('@google-cloud/billing');
-      
-      const client = new CloudBillingClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId
+      services.forEach(service => {
+        regions.forEach(region => {
+          const amount = Math.random() * 90 + 12; // $12-$102 per day per service per region
+          costData.push({
+            date: dateStr,
+            amount: Math.round(amount * 100) / 100,
+            currency: 'USD',
+            service: service,
+            region: region
+          });
+        });
       });
-
-      // Get billing account
-      const [accounts] = await client.listBillingAccounts();
-      
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No billing accounts found');
-      }
-
-      const billingAccount = accounts[0].name;
-      
-      // Note: For detailed cost data, you would typically use BigQuery with billing export
-      // This is a simplified example
-      const costData: CostData[] = [
-        {
-          date: startDate,
-          amount: 0, // Would come from BigQuery billing export
-          currency: 'USD',
-          service: 'Cloud Billing API does not provide detailed cost breakdown',
-          region: 'global'
-        }
-      ];
-
-      console.log(`GCP: Retrieved ${costData.length} cost records`);
-      return costData;
-    } catch (error) {
-      console.error('Error fetching real GCP cost data:', error);
-      throw new Error(`Failed to fetch GCP cost data: ${error}`);
     }
+
+    console.log(`GCP: Retrieved ${costData.length} cost records (simulated)`);
+    return costData;
   }
 
   async getResources(): Promise<ResourceData[]> {
-    try {
-      console.log('Fetching real GCP resources');
-      
-      const { ProjectsClient } = await import('@google-cloud/resource-manager');
-      
-      const client = new ProjectsClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId
-      });
-
-      // Get project info
-      const [project] = await client.getProject({
-        name: `projects/${this.projectId}`
-      });
-
-      const resources: ResourceData[] = [];
-
-      if (project) {
-        resources.push({
-          id: project.name || this.projectId,
-          name: project.displayName || this.projectId,
-          type: 'Project',
-          provider: 'gcp',
-          region: 'global',
-          cost: 0,
-          utilization: 0,
-          status: project.state === 'ACTIVE' ? 'running' : 'stopped',
-          tags: project.labels || {}
-        });
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 600));
+    
+    console.log('Fetching simulated GCP resources');
+    
+    const machineTypes = ['e2-micro', 'e2-small', 'e2-medium', 'n1-standard-1', 'n1-standard-2'];
+    const zones = ['us-central1-a', 'us-east1-b', 'europe-west1-c'];
+    const statuses = ['RUNNING', 'TERMINATED', 'STOPPED'];
+    
+    const resources: ResourceData[] = [];
+    
+    // Generate project info
+    resources.push({
+      id: `projects/${this.projectId}`,
+      name: this.projectId,
+      type: 'Project',
+      provider: 'gcp',
+      region: 'global',
+      cost: 0,
+      utilization: 0,
+      status: 'running',
+      tags: {
+        'project-id': this.projectId,
+        'billing-enabled': 'true'
       }
-
-      // Note: To get compute instances, storage buckets, etc., you would need to
-      // import and use their respective clients (Compute Engine, Cloud Storage, etc.)
-
-      console.log(`GCP: Retrieved ${resources.length} resources`);
-      return resources;
-    } catch (error) {
-      console.error('Error fetching real GCP resources:', error);
-      throw new Error(`Failed to fetch GCP resources: ${error}`);
+    });
+    
+    // Generate 12-18 Compute Engine instances
+    const instanceCount = 12 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < instanceCount; i++) {
+      const machineType = machineTypes[Math.floor(Math.random() * machineTypes.length)];
+      const zone = zones[Math.floor(Math.random() * zones.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const utilization = status === 'RUNNING' ? Math.random() * 75 + 10 : 0;
+      
+      resources.push({
+        id: `projects/${this.projectId}/zones/${zone}/instances/instance-${i}`,
+        name: `gce-instance-${i + 1}`,
+        type: `Compute Engine ${machineType}`,
+        provider: 'gcp',
+        region: zone.substring(0, zone.lastIndexOf('-')),
+        cost: Math.round((Math.random() * 160 + 30) * 100) / 100,
+        utilization: Math.round(utilization),
+        status: status.toLowerCase(),
+        tags: {
+          environment: Math.random() > 0.5 ? 'production' : 'development',
+          team: `team-${Math.floor(Math.random() * 4) + 1}`
+        }
+      });
     }
+
+    // Add some Cloud SQL instances
+    for (let i = 0; i < 2; i++) {
+      resources.push({
+        id: `projects/${this.projectId}/instances/cloudsql-${i}`,
+        name: `cloudsql-db-${i + 1}`,
+        type: 'Cloud SQL MySQL',
+        provider: 'gcp',
+        region: zones[Math.floor(Math.random() * zones.length)].substring(0, zones[0].lastIndexOf('-')),
+        cost: Math.round((Math.random() * 120 + 60) * 100) / 100,
+        utilization: Math.round(Math.random() * 65 + 20),
+        status: 'running',
+        tags: {
+          environment: 'production',
+          'backup-enabled': 'true'
+        }
+      });
+    }
+
+    console.log(`GCP: Retrieved ${resources.length} resources (simulated)`);
+    return resources;
   }
 
   async getBudgets(): Promise<BudgetData[]> {
-    try {
-      console.log('Fetching real GCP budgets');
-      
-      // Import the billing client that contains budget functionality
-      const billing = await import('@google-cloud/billing');
-      
-      // Use CloudBillingClient which has budget methods
-      const client = new billing.CloudBillingClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId
-      });
-
-      // Get billing account first
-      const [accounts] = await client.listBillingAccounts();
-      
-      if (!accounts || accounts.length === 0) {
-        return [];
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 500));
+    
+    console.log('Fetching simulated GCP budgets');
+    
+    const budgetData: BudgetData[] = [
+      {
+        id: 'monthly-compute-budget',
+        name: 'Monthly Compute Budget',
+        amount: 3500,
+        spent: Math.round((Math.random() * 2200 + 800) * 100) / 100,
+        period: 'monthly',
+        provider: 'gcp'
+      },
+      {
+        id: 'quarterly-storage-budget',
+        name: 'Quarterly Storage Budget',
+        amount: 1500,
+        spent: Math.round((Math.random() * 900 + 300) * 100) / 100,
+        period: 'quarterly',
+        provider: 'gcp'
+      },
+      {
+        id: 'annual-project-budget',
+        name: 'Annual Project Budget',
+        amount: 40000,
+        spent: Math.round((Math.random() * 28000 + 8000) * 100) / 100,
+        period: 'yearly',
+        provider: 'gcp'
       }
+    ];
 
-      const billingAccount = accounts[0].name;
-      
-      // Note: The budget functionality in @google-cloud/billing might be limited
-      // In real scenarios, you'd typically use the Budget Service API directly
-      const budgetData: BudgetData[] = [];
-
-      console.log(`GCP: Retrieved ${budgetData.length} budgets`);
-      return budgetData;
-    } catch (error) {
-      console.error('Error fetching real GCP budgets:', error);
-      throw new Error(`Failed to fetch GCP budgets: ${error}`);
-    }
+    console.log(`GCP: Retrieved ${budgetData.length} budgets (simulated)`);
+    return budgetData;
   }
 
   async testConnection(): Promise<boolean> {
-    try {
-      console.log('Testing real GCP connection');
-      
-      const { ProjectsClient } = await import('@google-cloud/resource-manager');
-      
-      const client = new ProjectsClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId
-      });
-
-      // Test by getting project info
-      await client.getProject({
-        name: `projects/${this.projectId}`
-      });
-      
-      console.log('GCP connection successful');
+    // Simulate connection test
+    await new Promise(resolve => setTimeout(resolve, 1100 + Math.random() * 900));
+    
+    console.log('Testing simulated GCP connection');
+    
+    // Simulate occasional connection failures for realism
+    const success = Math.random() > 0.12; // 88% success rate
+    
+    if (success) {
+      console.log('GCP connection successful (simulated)');
       return true;
-    } catch (error) {
-      console.error('GCP connection test failed:', error);
+    } else {
+      console.log('GCP connection failed (simulated)');
       return false;
     }
   }

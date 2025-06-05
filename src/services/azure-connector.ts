@@ -9,160 +9,149 @@ export class AzureConnector {
   }
 
   async getCostData(startDate: string, endDate: string): Promise<CostData[]> {
-    try {
-      console.log('Fetching real Azure cost data from', startDate, 'to', endDate);
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 900 + Math.random() * 600));
+    
+    console.log('Fetching simulated Azure cost data from', startDate, 'to', endDate);
+    
+    // Generate realistic mock data
+    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const services = ['Virtual Machines', 'Storage', 'SQL Database', 'App Service', 'CDN', 'Load Balancer'];
+    const regions = ['East US', 'West US 2', 'North Europe'];
+    
+    const costData: CostData[] = [];
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(new Date(startDate).getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
       
-      const { ConsumptionManagementClient } = await import('@azure/arm-consumption');
-      const { ClientSecretCredential } = await import('@azure/identity');
-
-      const credential = new ClientSecretCredential(
-        this.credentials.tenantId!,
-        this.credentials.clientId!,
-        this.credentials.clientSecret!
-      );
-
-      const client = new ConsumptionManagementClient(credential, this.credentials.subscriptionId!);
-      
-      // Get usage details for the subscription
-      const usageDetails = client.usageDetails.list(
-        `/subscriptions/${this.credentials.subscriptionId}`,
-        {
-          filter: `properties/usageStart ge '${startDate}' and properties/usageEnd le '${endDate}'`
-        }
-      );
-
-      const costData: CostData[] = [];
-      
-      for await (const usage of usageDetails) {
-        // Handle the union type properly
-        if (usage && 'properties' in usage && usage.properties) {
-          const props = usage.properties as any;
-          if ('cost' in props) {
-            costData.push({
-              date: props.date?.toISOString?.()?.split('T')[0] || startDate,
-              amount: props.cost || 0,
-              currency: props.currency || 'USD',
-              service: props.meterCategory || 'Unknown',
-              region: props.resourceLocation || 'Unknown'
-            });
-          }
-        }
-      }
-
-      console.log(`Azure: Retrieved ${costData.length} cost records`);
-      return costData;
-    } catch (error) {
-      console.error('Error fetching real Azure cost data:', error);
-      throw new Error(`Failed to fetch Azure cost data: ${error}`);
+      services.forEach(service => {
+        regions.forEach(region => {
+          const amount = Math.random() * 120 + 15; // $15-$135 per day per service per region
+          costData.push({
+            date: dateStr,
+            amount: Math.round(amount * 100) / 100,
+            currency: 'USD',
+            service: service,
+            region: region
+          });
+        });
+      });
     }
+
+    console.log(`Azure: Retrieved ${costData.length} cost records (simulated)`);
+    return costData;
   }
 
   async getResources(): Promise<ResourceData[]> {
-    try {
-      console.log('Fetching real Azure resources');
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 500));
+    
+    console.log('Fetching simulated Azure resources');
+    
+    const vmSizes = ['Standard_B1s', 'Standard_B2s', 'Standard_D2s_v3', 'Standard_F4s_v2'];
+    const regions = ['East US', 'West US 2', 'North Europe'];
+    const statuses = ['running', 'stopped', 'deallocated'];
+    
+    const resources: ResourceData[] = [];
+    
+    // Generate 10-20 Virtual Machines
+    const vmCount = 10 + Math.floor(Math.random() * 10);
+    for (let i = 0; i < vmCount; i++) {
+      const vmSize = vmSizes[Math.floor(Math.random() * vmSizes.length)];
+      const region = regions[Math.floor(Math.random() * regions.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const utilization = status === 'running' ? Math.random() * 85 + 5 : 0;
       
-      const { ResourceManagementClient } = await import('@azure/arm-resources');
-      const { ClientSecretCredential } = await import('@azure/identity');
-
-      const credential = new ClientSecretCredential(
-        this.credentials.tenantId!,
-        this.credentials.clientId!,
-        this.credentials.clientSecret!
-      );
-
-      const client = new ResourceManagementClient(credential, this.credentials.subscriptionId!);
-      
-      const resources: ResourceData[] = [];
-      const resourcesResponse = client.resources.list();
-
-      for await (const resource of resourcesResponse) {
-        if (resource.id && resource.name && resource.type) {
-          resources.push({
-            id: resource.id,
-            name: resource.name,
-            type: resource.type,
-            provider: 'azure',
-            region: resource.location || 'Unknown',
-            cost: 0, // Would need additional API calls to get cost
-            utilization: 0, // Would need Azure Monitor metrics
-            status: 'running', // Would need resource-specific status checks
-            tags: resource.tags || {}
-          });
+      resources.push({
+        id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/rg-${i}/providers/Microsoft.Compute/virtualMachines/vm-${i}`,
+        name: `vm-web-${i + 1}`,
+        type: `Virtual Machine ${vmSize}`,
+        provider: 'azure',
+        region: region,
+        cost: Math.round((Math.random() * 180 + 40) * 100) / 100,
+        utilization: Math.round(utilization),
+        status: status,
+        tags: {
+          Environment: Math.random() > 0.6 ? 'Production' : 'Development',
+          CostCenter: `CC-${Math.floor(Math.random() * 3) + 1}`
         }
-      }
-
-      console.log(`Azure: Retrieved ${resources.length} resources`);
-      return resources;
-    } catch (error) {
-      console.error('Error fetching real Azure resources:', error);
-      throw new Error(`Failed to fetch Azure resources: ${error}`);
+      });
     }
+
+    // Add some SQL Databases
+    for (let i = 0; i < 4; i++) {
+      resources.push({
+        id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/rg-db/providers/Microsoft.Sql/servers/sqlsrv-${i}/databases/db-${i}`,
+        name: `sqldb-app-${i + 1}`,
+        type: 'SQL Database',
+        provider: 'azure',
+        region: regions[Math.floor(Math.random() * regions.length)],
+        cost: Math.round((Math.random() * 200 + 80) * 100) / 100,
+        utilization: Math.round(Math.random() * 70 + 15),
+        status: 'running',
+        tags: {
+          Environment: 'Production',
+          Tier: 'Standard'
+        }
+      });
+    }
+
+    console.log(`Azure: Retrieved ${resources.length} resources (simulated)`);
+    return resources;
   }
 
   async getBudgets(): Promise<BudgetData[]> {
-    try {
-      console.log('Fetching real Azure budgets');
-      
-      const { ConsumptionManagementClient } = await import('@azure/arm-consumption');
-      const { ClientSecretCredential } = await import('@azure/identity');
-
-      const credential = new ClientSecretCredential(
-        this.credentials.tenantId!,
-        this.credentials.clientId!,
-        this.credentials.clientSecret!
-      );
-
-      const client = new ConsumptionManagementClient(credential, this.credentials.subscriptionId!);
-      
-      // Get budgets for the subscription
-      const budgetsResponse = client.budgets.list(`/subscriptions/${this.credentials.subscriptionId}`);
-      
-      const budgetData: BudgetData[] = [];
-      
-      for await (const budget of budgetsResponse) {
-        if (budget.name && budget.amount) {
-          budgetData.push({
-            id: budget.name,
-            name: budget.name,
-            amount: budget.amount,
-            spent: budget.currentSpend?.amount || 0,
-            period: budget.timeGrain?.toLowerCase() as 'monthly' | 'quarterly' | 'yearly' || 'monthly',
-            provider: 'azure'
-          });
-        }
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 400));
+    
+    console.log('Fetching simulated Azure budgets');
+    
+    const budgetData: BudgetData[] = [
+      {
+        id: 'monthly-vm-budget',
+        name: 'Monthly VM Budget',
+        amount: 4500,
+        spent: Math.round((Math.random() * 2800 + 900) * 100) / 100,
+        period: 'monthly',
+        provider: 'azure'
+      },
+      {
+        id: 'quarterly-database-budget',
+        name: 'Quarterly Database Budget',
+        amount: 3000,
+        spent: Math.round((Math.random() * 1800 + 600) * 100) / 100,
+        period: 'quarterly',
+        provider: 'azure'
+      },
+      {
+        id: 'annual-subscription-budget',
+        name: 'Annual Subscription Budget',
+        amount: 60000,
+        spent: Math.round((Math.random() * 42000 + 15000) * 100) / 100,
+        period: 'yearly',
+        provider: 'azure'
       }
+    ];
 
-      console.log(`Azure: Retrieved ${budgetData.length} budgets`);
-      return budgetData;
-    } catch (error) {
-      console.error('Error fetching real Azure budgets:', error);
-      throw new Error(`Failed to fetch Azure budgets: ${error}`);
-    }
+    console.log(`Azure: Retrieved ${budgetData.length} budgets (simulated)`);
+    return budgetData;
   }
 
   async testConnection(): Promise<boolean> {
-    try {
-      console.log('Testing real Azure connection');
-      
-      const { ClientSecretCredential } = await import('@azure/identity');
-      const { ResourceManagementClient } = await import('@azure/arm-resources');
-
-      const credential = new ClientSecretCredential(
-        this.credentials.tenantId!,
-        this.credentials.clientId!,
-        this.credentials.clientSecret!
-      );
-
-      const client = new ResourceManagementClient(credential, this.credentials.subscriptionId!);
-      
-      // Test by getting resource groups instead of subscription
-      const resourceGroups = client.resourceGroups.list();
-      const result = await resourceGroups.next();
-      
-      console.log('Azure connection successful');
+    // Simulate connection test
+    await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
+    
+    console.log('Testing simulated Azure connection');
+    
+    // Simulate occasional connection failures for realism
+    const success = Math.random() > 0.15; // 85% success rate
+    
+    if (success) {
+      console.log('Azure connection successful (simulated)');
       return true;
-    } catch (error) {
-      console.error('Azure connection test failed:', error);
+    } else {
+      console.log('Azure connection failed (simulated)');
       return false;
     }
   }
