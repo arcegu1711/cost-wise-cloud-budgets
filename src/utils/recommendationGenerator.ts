@@ -16,78 +16,131 @@ export const generateRecommendationsFromData = (costData: any, resourcesData: an
   let id = 1;
 
   connectedProviders.forEach(provider => {
+    const providerResources = resourcesData.filter(resource => resource.provider === provider);
     const providerCosts = costData[provider] || [];
-    const totalCost = providerCosts.reduce((sum: number, cost: any) => sum + cost.amount, 0);
     
-    if (totalCost > 0) {
-      // Recomendação de redimensionamento baseada no custo
-      if (totalCost > 5000) {
-        recommendations.push({
-          id: id++,
-          title: `Redimensionar Instâncias ${provider.toUpperCase()}`,
-          description: `${Math.floor(totalCost / 1000)} instâncias podem estar superdimensionadas`,
-          potential_savings: totalCost * 0.15,
-          effort: "Low",
-          impact: "High",
-          category: "compute",
-          resources: Math.floor(totalCost / 1000),
-          provider: provider.toUpperCase()
-        });
-      }
+    if (providerResources.length === 0) return;
 
-      // Recomendação de instâncias reservadas
-      if (totalCost > 3000) {
-        recommendations.push({
-          id: id++,
-          title: `Oportunidades de Instâncias Reservadas ${provider.toUpperCase()}`,
-          description: "Comprar instâncias reservadas para cargas de trabalho consistentes",
-          potential_savings: totalCost * 0.12,
-          effort: "Medium",
-          impact: "High",
-          category: "commitment",
-          resources: Math.floor(totalCost / 500),
-          provider: provider.toUpperCase()
-        });
-      }
+    // 1. Recomendação baseada em recursos com baixa utilização (dados reais)
+    const underutilizedResources = providerResources.filter(resource => 
+      resource.utilization && resource.utilization < 30 && 
+      (resource.type.toLowerCase().includes('virtual machine') || 
+       resource.type.toLowerCase().includes('compute'))
+    );
 
-      // Recomendação de armazenamento não utilizado
-      const storageServices = providerCosts.filter((cost: any) => 
-        cost.service.toLowerCase().includes('storage') || 
-        cost.service.toLowerCase().includes('disk') ||
-        cost.service.toLowerCase().includes('blob')
-      );
-      
-      if (storageServices.length > 0) {
-        const storageCost = storageServices.reduce((sum: number, cost: any) => sum + cost.amount, 0);
-        recommendations.push({
-          id: id++,
-          title: `Volumes de Armazenamento Não Utilizados ${provider.toUpperCase()}`,
-          description: `${storageServices.length} volumes podem estar desanexados`,
-          potential_savings: storageCost * 0.8,
-          effort: "Low",
-          impact: "Medium",
-          category: "storage",
-          resources: storageServices.length,
-          provider: provider.toUpperCase()
-        });
-      }
+    if (underutilizedResources.length > 0) {
+      const totalSavings = underutilizedResources.reduce((sum, resource) => sum + (resource.cost * 0.4), 0);
+      recommendations.push({
+        id: id++,
+        title: `Redimensionar Instâncias Subutilizadas ${provider.toUpperCase()}`,
+        description: `${underutilizedResources.length} instâncias com utilização abaixo de 30% identificadas`,
+        potential_savings: totalSavings,
+        effort: "Medium",
+        impact: "High",
+        category: "compute",
+        resources: underutilizedResources.length,
+        provider: provider.toUpperCase()
+      });
+    }
 
-      // Recomendação de balanceadores de carga ociosos
-      if (totalCost > 2000) {
+    // 2. Recomendação para recursos de armazenamento (baseado em tipos reais)
+    const storageResources = providerResources.filter(resource => 
+      resource.type.toLowerCase().includes('storage') ||
+      resource.type.toLowerCase().includes('disk') ||
+      resource.type.toLowerCase().includes('blob')
+    );
+
+    if (storageResources.length > 0) {
+      // Assume que 20% do armazenamento pode estar não utilizado
+      const totalStorageSavings = storageResources.reduce((sum, resource) => sum + (resource.cost * 0.2), 0);
+      recommendations.push({
+        id: id++,
+        title: `Otimizar Armazenamento ${provider.toUpperCase()}`,
+        description: `${storageResources.length} recursos de armazenamento podem ser otimizados`,
+        potential_savings: totalStorageSavings,
+        effort: "Low",
+        impact: "Medium",
+        category: "storage",
+        resources: storageResources.length,
+        provider: provider.toUpperCase()
+      });
+    }
+
+    // 3. Recomendação para recursos caros que podem usar instâncias reservadas
+    const expensiveResources = providerResources.filter(resource => 
+      resource.cost > 1000 && 
+      (resource.type.toLowerCase().includes('virtual machine') ||
+       resource.type.toLowerCase().includes('database') ||
+       resource.type.toLowerCase().includes('sql'))
+    );
+
+    if (expensiveResources.length > 0) {
+      const reservedInstanceSavings = expensiveResources.reduce((sum, resource) => sum + (resource.cost * 0.15), 0);
+      recommendations.push({
+        id: id++,
+        title: `Instâncias Reservadas ${provider.toUpperCase()}`,
+        description: `${expensiveResources.length} recursos de alto custo ideais para instâncias reservadas`,
+        potential_savings: reservedInstanceSavings,
+        effort: "Medium",
+        impact: "High",
+        category: "commitment",
+        resources: expensiveResources.length,
+        provider: provider.toUpperCase()
+      });
+    }
+
+    // 4. Recomendação para recursos de rede (baseado em tipos reais)
+    const networkResources = providerResources.filter(resource => 
+      resource.type.toLowerCase().includes('gateway') ||
+      resource.type.toLowerCase().includes('load balancer') ||
+      resource.type.toLowerCase().includes('application gateway')
+    );
+
+    if (networkResources.length > 0) {
+      // Assume economia menor para recursos de rede
+      const networkSavings = networkResources.reduce((sum, resource) => sum + (resource.cost * 0.1), 0);
+      if (networkSavings > 100) { // Só recomenda se a economia for significativa
         recommendations.push({
           id: id++,
-          title: `Balanceadores de Carga Ociosos ${provider.toUpperCase()}`,
-          description: `${Math.floor(totalCost / 2000)} balanceadores sem tráfego`,
-          potential_savings: Math.floor(totalCost / 2000) * 180,
+          title: `Otimizar Recursos de Rede ${provider.toUpperCase()}`,
+          description: `${networkResources.length} recursos de rede podem ser revisados`,
+          potential_savings: networkSavings,
           effort: "Low",
           impact: "Low",
           category: "network",
-          resources: Math.floor(totalCost / 2000),
+          resources: networkResources.length,
+          provider: provider.toUpperCase()
+        });
+      }
+    }
+
+    // 5. Recomendação baseada em recursos em ambiente de desenvolvimento
+    const devResources = providerResources.filter(resource => 
+      resource.tags && (
+        resource.tags.Environment?.toLowerCase().includes('dev') ||
+        resource.tags.Environment?.toLowerCase().includes('development') ||
+        resource.tags.Environment?.toLowerCase().includes('test')
+      )
+    );
+
+    if (devResources.length > 0) {
+      const devSavings = devResources.reduce((sum, resource) => sum + (resource.cost * 0.3), 0);
+      if (devSavings > 200) {
+        recommendations.push({
+          id: id++,
+          title: `Otimizar Ambientes de Desenvolvimento ${provider.toUpperCase()}`,
+          description: `${devResources.length} recursos em ambientes dev/test podem ser redimensionados`,
+          potential_savings: devSavings,
+          effort: "Low",
+          impact: "Medium",
+          category: "compute",
+          resources: devResources.length,
           provider: provider.toUpperCase()
         });
       }
     }
   });
 
-  return recommendations;
+  // Ordena por economia potencial (maior primeiro)
+  return recommendations.sort((a, b) => b.potential_savings - a.potential_savings);
 };
