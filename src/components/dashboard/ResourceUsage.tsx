@@ -6,6 +6,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Server, Database, Zap, HardDrive, Activity } from "lucide-react";
+import { formatCurrency } from "@/utils/currency";
 
 const utilizationData = [
   { hour: "00:00", cpu: 45, memory: 62, storage: 78 },
@@ -17,76 +18,76 @@ const utilizationData = [
 ];
 
 const resourcesByType = [
-  { type: "Compute", count: 45, cost: 8200, utilization: 72 },
-  { type: "Storage", count: 120, cost: 2400, utilization: 84 },
-  { type: "Network", count: 15, cost: 1200, utilization: 56 },
-  { type: "Database", count: 8, cost: 3600, utilization: 89 },
+  { type: "Computação", count: 45, cost: 41000, utilization: 72 },
+  { type: "Armazenamento", count: 120, cost: 12000, utilization: 84 },
+  { type: "Rede", count: 15, cost: 6000, utilization: 56 },
+  { type: "Base de Dados", count: 8, cost: 18000, utilization: 89 },
 ];
 
 const topResources = [
   {
     name: "prod-web-server-01",
-    type: "EC2 Instance",
+    type: "Instância EC2",
     provider: "AWS",
-    cost: 240,
+    cost: 1200,
     utilization: 45,
-    status: "underutilized"
+    status: "subutilizado"
   },
   {
     name: "analytics-db-cluster",
-    type: "RDS Instance", 
+    type: "Instância RDS", 
     provider: "AWS",
-    cost: 680,
+    cost: 3400,
     utilization: 92,
-    status: "optimized"
+    status: "otimizado"
   },
   {
     name: "backup-storage-eu",
-    type: "S3 Bucket",
+    type: "Bucket S3",
     provider: "AWS", 
-    cost: 180,
+    cost: 900,
     utilization: 23,
-    status: "underutilized"
+    status: "subutilizado"
   },
   {
     name: "dev-kubernetes-cluster",
-    type: "AKS Cluster",
+    type: "Cluster AKS",
     provider: "Azure",
-    cost: 420,
+    cost: 2100,
     utilization: 78,
-    status: "good"
+    status: "bom"
   },
   {
     name: "ml-training-vm",
     type: "Compute Engine",
     provider: "GCP",
-    cost: 890,
+    cost: 4450,
     utilization: 96,
-    status: "optimized"
+    status: "otimizado"
   }
 ];
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case "optimized":
-      return <Badge className="bg-green-100 text-green-700">Optimized</Badge>;
-    case "good":
-      return <Badge variant="secondary" className="bg-blue-100 text-blue-700">Good</Badge>;
-    case "underutilized":
-      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">Underutilized</Badge>;
+    case "otimizado":
+      return <Badge className="bg-green-100 text-green-700">Otimizado</Badge>;
+    case "bom":
+      return <Badge variant="secondary" className="bg-blue-100 text-blue-700">Bom</Badge>;
+    case "subutilizado":
+      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">Subutilizado</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
 };
 
 const getTypeIcon = (type: string) => {
-  if (type.includes("Instance") || type.includes("Server") || type.includes("Cluster")) {
+  if (type.includes("Instância") || type.includes("Server") || type.includes("Cluster")) {
     return <Server className="h-4 w-4" />;
   }
   if (type.includes("Database") || type.includes("RDS")) {
     return <Database className="h-4 w-4" />;
   }
-  if (type.includes("Storage") || type.includes("S3")) {
+  if (type.includes("Storage") || type.includes("S3") || type.includes("Bucket")) {
     return <HardDrive className="h-4 w-4" />;
   }
   return <Zap className="h-4 w-4" />;
@@ -94,8 +95,8 @@ const getTypeIcon = (type: string) => {
 
 const chartConfig = {
   cpu: { label: "CPU", color: "#3B82F6" },
-  memory: { label: "Memory", color: "#10B981" },
-  storage: { label: "Storage", color: "#F59E0B" },
+  memory: { label: "Memória", color: "#10B981" },
+  storage: { label: "Armazenamento", color: "#F59E0B" },
 };
 
 export const ResourceUsage = () => {
@@ -103,8 +104,8 @@ export const ResourceUsage = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold">Resource Usage</h2>
-        <p className="text-muted-foreground">Monitor utilization and performance across your infrastructure</p>
+        <h2 className="text-2xl font-bold">Uso de Recursos</h2>
+        <p className="text-muted-foreground">Monitore a utilização e desempenho da sua infraestrutura</p>
       </div>
 
       {/* Resource Type Summary */}
@@ -114,18 +115,18 @@ export const ResourceUsage = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
-                  {resource.type === "Compute" && <Server className="h-4 w-4 text-blue-600" />}
-                  {resource.type === "Storage" && <HardDrive className="h-4 w-4 text-green-600" />}
-                  {resource.type === "Network" && <Zap className="h-4 w-4 text-yellow-600" />}
-                  {resource.type === "Database" && <Database className="h-4 w-4 text-purple-600" />}
+                  {resource.type === "Computação" && <Server className="h-4 w-4 text-blue-600" />}
+                  {resource.type === "Armazenamento" && <HardDrive className="h-4 w-4 text-green-600" />}
+                  {resource.type === "Rede" && <Zap className="h-4 w-4 text-yellow-600" />}
+                  {resource.type === "Base de Dados" && <Database className="h-4 w-4 text-purple-600" />}
                   <span className="font-medium">{resource.type}</span>
                 </div>
                 <Badge variant="outline">{resource.count}</Badge>
               </div>
               <div className="space-y-1">
-                <div className="text-lg font-semibold">${resource.cost}</div>
+                <div className="text-lg font-semibold">{formatCurrency(resource.cost)}</div>
                 <div className="text-sm text-muted-foreground">
-                  {resource.utilization}% utilized
+                  {resource.utilization}% utilizado
                 </div>
               </div>
             </CardContent>
@@ -137,8 +138,8 @@ export const ResourceUsage = () => {
         {/* Utilization Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Resource Utilization Trend</CardTitle>
-            <CardDescription>Average utilization over the last 24 hours</CardDescription>
+            <CardTitle>Tendência de Utilização de Recursos</CardTitle>
+            <CardDescription>Utilização média nas últimas 24 horas</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
@@ -158,14 +159,14 @@ export const ResourceUsage = () => {
                   dataKey="memory" 
                   stroke="#10B981" 
                   strokeWidth={2}
-                  name="Memory"
+                  name="Memória"
                 />
                 <Line 
                   type="monotone" 
                   dataKey="storage" 
                   stroke="#F59E0B" 
                   strokeWidth={2}
-                  name="Storage"
+                  name="Armazenamento"
                 />
               </LineChart>
             </ChartContainer>
@@ -175,8 +176,8 @@ export const ResourceUsage = () => {
         {/* Resource Type Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Cost by Resource Type</CardTitle>
-            <CardDescription>Monthly spending breakdown</CardDescription>
+            <CardTitle>Custo por Tipo de Recurso</CardTitle>
+            <CardDescription>Distribuição de gastos mensais</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[300px]">
@@ -194,20 +195,20 @@ export const ResourceUsage = () => {
       {/* Top Resources Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Cost Resources</CardTitle>
-          <CardDescription>Resources consuming the most budget</CardDescription>
+          <CardTitle>Recursos com Maior Custo</CardTitle>
+          <CardDescription>Recursos que consomem mais orçamento</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Resource</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Monthly Cost</TableHead>
-                <TableHead>Utilization</TableHead>
+                <TableHead>Recurso</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Provedor</TableHead>
+                <TableHead>Custo Mensal</TableHead>
+                <TableHead>Utilização</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -223,7 +224,7 @@ export const ResourceUsage = () => {
                   <TableCell>
                     <Badge variant="outline">{resource.provider}</Badge>
                   </TableCell>
-                  <TableCell className="font-medium">${resource.cost}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(resource.cost)}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 bg-gray-200 rounded-full h-2">
@@ -239,7 +240,7 @@ export const ResourceUsage = () => {
                   <TableCell>
                     <Button variant="outline" size="sm">
                       <Activity className="h-3 w-3 mr-1" />
-                      Details
+                      Detalhes
                     </Button>
                   </TableCell>
                 </TableRow>

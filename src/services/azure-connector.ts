@@ -18,7 +18,7 @@ export class AzureConnector {
       
       await new Promise(resolve => setTimeout(resolve, 1200));
       
-      // Generate realistic Azure cost data for the last 7 days
+      // Generate realistic Azure cost data for the last 7 days in BRL
       const mockData: CostData[] = [];
       const services = [
         'Virtual Machines',
@@ -39,10 +39,10 @@ export class AzureConnector {
         services.forEach(service => {
           mockData.push({
             date: dateStr,
-            amount: Math.random() * 150 + 20, // Random cost between $20-$170
-            currency: 'USD',
+            amount: Math.random() * 750 + 100, // Random cost between R$100-R$850 (converted from USD)
+            currency: 'BRL',
             service: service,
-            region: 'East US'
+            region: 'Brazil South'
           });
         });
       }
@@ -65,55 +65,55 @@ export class AzureConnector {
       const mockResources: ResourceData[] = [
         {
           id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/production/providers/Microsoft.Compute/virtualMachines/prod-web-vm`,
-          name: 'Production Web Server',
+          name: 'Servidor Web de Produção',
           type: 'Virtual Machine Standard_D4s_v3',
           provider: 'azure',
-          region: 'East US',
-          cost: 142.80,
+          region: 'Brazil South',
+          cost: 714.00, // Converted to BRL
           utilization: 78,
           status: 'running',
           tags: { Environment: 'Production', Owner: 'WebTeam', CostCenter: 'IT-001' },
         },
         {
           id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/development/providers/Microsoft.Compute/virtualMachines/dev-api-vm`,
-          name: 'Development API Server',
+          name: 'Servidor API de Desenvolvimento',
           type: 'Virtual Machine Standard_B2s',
           provider: 'azure',
-          region: 'East US',
-          cost: 67.20,
+          region: 'Brazil South',
+          cost: 336.00, // Converted to BRL
           utilization: 45,
           status: 'running',
           tags: { Environment: 'Development', Owner: 'DevTeam' },
         },
         {
           id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/storage/providers/Microsoft.Storage/storageAccounts/prodstorageacct`,
-          name: 'Production Storage Account',
+          name: 'Conta de Armazenamento de Produção',
           type: 'Storage Account (Premium LRS)',
           provider: 'azure',
-          region: 'East US',
-          cost: 89.40,
+          region: 'Brazil South',
+          cost: 447.00, // Converted to BRL
           utilization: 62,
           status: 'running',
           tags: { Environment: 'Production', DataType: 'ApplicationData' },
         },
         {
           id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/database/providers/Microsoft.Sql/servers/prod-sql/databases/maindb`,
-          name: 'Main Production Database',
+          name: 'Base de Dados Principal de Produção',
           type: 'SQL Database (S2)',
           provider: 'azure',
-          region: 'East US',
-          cost: 156.75,
+          region: 'Brazil South',
+          cost: 783.75, // Converted to BRL
           utilization: 85,
           status: 'running',
           tags: { Environment: 'Production', Backup: 'Daily', Owner: 'DataTeam' },
         },
         {
           id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/kubernetes/providers/Microsoft.ContainerService/managedClusters/prod-aks`,
-          name: 'Production AKS Cluster',
+          name: 'Cluster AKS de Produção',
           type: 'Azure Kubernetes Service',
           provider: 'azure',
-          region: 'East US',
-          cost: 234.50,
+          region: 'Brazil South',
+          cost: 1172.50, // Converted to BRL
           utilization: 72,
           status: 'running',
           tags: { Environment: 'Production', NodeCount: '3', Owner: 'DevOps' },
@@ -137,25 +137,25 @@ export class AzureConnector {
       const mockBudgets: BudgetData[] = [
         {
           id: 'azure-budget-production',
-          name: 'Production Environment Budget',
-          amount: 2000,
-          spent: 1456.32,
+          name: 'Orçamento do Ambiente de Produção',
+          amount: 10000, // Converted to BRL
+          spent: 7281.60, // Converted to BRL
           period: 'monthly',
           provider: 'azure',
         },
         {
           id: 'azure-budget-development',
-          name: 'Development Environment Budget',
-          amount: 500,
-          spent: 324.67,
+          name: 'Orçamento do Ambiente de Desenvolvimento',
+          amount: 2500, // Converted to BRL
+          spent: 1623.35, // Converted to BRL
           period: 'monthly',
           provider: 'azure',
         },
         {
           id: 'azure-budget-storage',
-          name: 'Storage Services Budget',
-          amount: 300,
-          spent: 189.40,
+          name: 'Orçamento de Serviços de Armazenamento',
+          amount: 1500, // Converted to BRL
+          spent: 947.00, // Converted to BRL
           period: 'monthly',
           provider: 'azure',
         }

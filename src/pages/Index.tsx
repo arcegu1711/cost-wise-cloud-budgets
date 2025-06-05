@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCloudData } from "@/hooks/useCloudData";
+import { formatCurrency, formatCurrencyCompact } from "@/utils/currency";
 
 const Index = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
@@ -61,7 +62,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Spend</CardTitle>
+                <CardTitle className="text-sm font-medium">Gasto Total</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -73,14 +74,14 @@ const Index = () => {
                 ) : (
                   <>
                     <div className="text-2xl font-bold">
-                      ${connectedProviders.length > 0 ? totalSpend.toFixed(2) : '12,459'}
+                      {connectedProviders.length > 0 ? formatCurrencyCompact(totalSpend) : 'R$ 62.295'}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       <span className="text-red-500 inline-flex items-center">
                         <TrendingUp className="h-3 w-3 mr-1" />
                         +12.5%
                       </span>
-                      from last month
+                      do mês passado
                     </p>
                   </>
                 )}
@@ -89,7 +90,7 @@ const Index = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Budget Utilization</CardTitle>
+                <CardTitle className="text-sm font-medium">Utilização do Orçamento</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -107,10 +108,10 @@ const Index = () => {
                       }
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      ${connectedProviders.length > 0 && remainingBudget > 0 
-                        ? remainingBudget.toFixed(0) 
-                        : '2,200'
-                      } remaining this month
+                      {connectedProviders.length > 0 && remainingBudget > 0 
+                        ? formatCurrencyCompact(remainingBudget) 
+                        : 'R$ 11.000'
+                      } restantes este mês
                     </p>
                   </>
                 )}
@@ -119,7 +120,7 @@ const Index = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cost Optimization</CardTitle>
+                <CardTitle className="text-sm font-medium">Otimização de Custos</CardTitle>
                 <TrendingDown className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
@@ -131,10 +132,10 @@ const Index = () => {
                 ) : (
                   <>
                     <div className="text-2xl font-bold text-green-600">
-                      ${connectedProviders.length > 0 ? potentialSavings.toFixed(0) : '3,247'}
+                      {connectedProviders.length > 0 ? formatCurrencyCompact(potentialSavings) : 'R$ 16.235'}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Potential monthly savings
+                      Economia potencial mensal
                     </p>
                   </>
                 )}
@@ -143,7 +144,7 @@ const Index = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Resources</CardTitle>
+                <CardTitle className="text-sm font-medium">Recursos Ativos</CardTitle>
                 <div className="h-4 w-4 bg-blue-600 rounded-full" />
               </CardHeader>
               <CardContent>
@@ -155,10 +156,10 @@ const Index = () => {
                 ) : (
                   <>
                     <div className="text-2xl font-bold">
-                      {connectedProviders.length > 0 ? totalResources : '1,247'}
+                      {connectedProviders.length > 0 ? totalResources : '1.247'}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Across {connectedProviders.length || 3} cloud providers
+                      Em {connectedProviders.length || 3} provedores de nuvem
                     </p>
                   </>
                 )}
@@ -194,11 +195,11 @@ const Index = () => {
           {/* Main Content Tabs */}
           <Tabs defaultValue="overview" className="space-y-6">
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="overview">Cost Overview</TabsTrigger>
-              <TabsTrigger value="budgets">Budget Management</TabsTrigger>
-              <TabsTrigger value="optimization">Optimization</TabsTrigger>
-              <TabsTrigger value="resources">Resource Usage</TabsTrigger>
-              <TabsTrigger value="connections">Cloud Connections</TabsTrigger>
+              <TabsTrigger value="overview">Visão Geral de Custos</TabsTrigger>
+              <TabsTrigger value="budgets">Gestão de Orçamentos</TabsTrigger>
+              <TabsTrigger value="optimization">Otimização</TabsTrigger>
+              <TabsTrigger value="resources">Uso de Recursos</TabsTrigger>
+              <TabsTrigger value="connections">Conexões Cloud</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">

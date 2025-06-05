@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { formatCurrency } from "@/utils/currency";
 
 interface CostOverviewProps {
   selectedPeriod: string;
@@ -10,27 +11,27 @@ interface CostOverviewProps {
 }
 
 const dailyCostData = [
-  { date: "Jan 1", aws: 450, azure: 200, gcp: 150 },
-  { date: "Jan 2", aws: 420, azure: 180, gcp: 160 },
-  { date: "Jan 3", aws: 480, azure: 220, gcp: 140 },
-  { date: "Jan 4", aws: 390, azure: 190, gcp: 170 },
-  { date: "Jan 5", aws: 460, azure: 210, gcp: 150 },
-  { date: "Jan 6", aws: 520, azure: 240, gcp: 180 },
-  { date: "Jan 7", aws: 410, azure: 200, gcp: 160 },
+  { date: "Jan 1", aws: 2250, azure: 1000, gcp: 750 },
+  { date: "Jan 2", aws: 2100, azure: 900, gcp: 800 },
+  { date: "Jan 3", aws: 2400, azure: 1100, gcp: 700 },
+  { date: "Jan 4", aws: 1950, azure: 950, gcp: 850 },
+  { date: "Jan 5", aws: 2300, azure: 1050, gcp: 750 },
+  { date: "Jan 6", aws: 2600, azure: 1200, gcp: 900 },
+  { date: "Jan 7", aws: 2050, azure: 1000, gcp: 800 },
 ];
 
 const serviceBreakdown = [
-  { service: "EC2", cost: 4200, percentage: 35 },
-  { service: "S3", cost: 1800, percentage: 15 },
-  { service: "RDS", cost: 2400, percentage: 20 },
-  { service: "Lambda", cost: 600, percentage: 5 },
-  { service: "Others", cost: 3000, percentage: 25 },
+  { service: "EC2", cost: 21000, percentage: 35 },
+  { service: "S3", cost: 9000, percentage: 15 },
+  { service: "RDS", cost: 12000, percentage: 20 },
+  { service: "Lambda", cost: 3000, percentage: 5 },
+  { service: "Outros", cost: 15000, percentage: 25 },
 ];
 
 const cloudProviderData = [
-  { name: "AWS", value: 7200, color: "#FF9500" },
-  { name: "Azure", value: 3600, color: "#0078D4" },
-  { name: "GCP", value: 1659, color: "#4285F4" },
+  { name: "AWS", value: 36000, color: "#FF9500" },
+  { name: "Azure", value: 18000, color: "#0078D4" },
+  { name: "GCP", value: 8295, color: "#4285F4" },
 ];
 
 const chartConfig = {
@@ -46,8 +47,8 @@ export const CostOverview = ({ selectedPeriod, onPeriodChange }: CostOverviewPro
       <Card className="lg:col-span-2">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Daily Cost Trend</CardTitle>
-            <CardDescription>Cost breakdown by cloud provider over time</CardDescription>
+            <CardTitle>Tendência de Custos Diários</CardTitle>
+            <CardDescription>Distribuição de custos por provedor de nuvem ao longo do tempo</CardDescription>
           </div>
           <div className="flex space-x-2">
             <Button 
@@ -55,21 +56,21 @@ export const CostOverview = ({ selectedPeriod, onPeriodChange }: CostOverviewPro
               size="sm"
               onClick={() => onPeriodChange("7d")}
             >
-              7 Days
+              7 Dias
             </Button>
             <Button 
               variant={selectedPeriod === "30d" ? "default" : "outline"} 
               size="sm"
               onClick={() => onPeriodChange("30d")}
             >
-              30 Days
+              30 Dias
             </Button>
             <Button 
               variant={selectedPeriod === "90d" ? "default" : "outline"} 
               size="sm"
               onClick={() => onPeriodChange("90d")}
             >
-              90 Days
+              90 Dias
             </Button>
           </div>
         </CardHeader>
@@ -111,8 +112,8 @@ export const CostOverview = ({ selectedPeriod, onPeriodChange }: CostOverviewPro
       {/* Service Breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Services by Cost</CardTitle>
-          <CardDescription>Current month breakdown</CardDescription>
+          <CardTitle>Principais Serviços por Custo</CardTitle>
+          <CardDescription>Distribuição do mês atual</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -123,7 +124,7 @@ export const CostOverview = ({ selectedPeriod, onPeriodChange }: CostOverviewPro
                   <span className="font-medium">{service.service}</span>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold">${service.cost}</div>
+                  <div className="font-semibold">{formatCurrency(service.cost)}</div>
                   <div className="text-sm text-muted-foreground">{service.percentage}%</div>
                 </div>
               </div>
@@ -135,8 +136,8 @@ export const CostOverview = ({ selectedPeriod, onPeriodChange }: CostOverviewPro
       {/* Cloud Provider Distribution */}
       <Card>
         <CardHeader>
-          <CardTitle>Cloud Provider Distribution</CardTitle>
-          <CardDescription>Monthly spend by provider</CardDescription>
+          <CardTitle>Distribuição por Provedor de Nuvem</CardTitle>
+          <CardDescription>Gastos mensais por provedor</CardDescription>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[200px]">
@@ -166,7 +167,7 @@ export const CostOverview = ({ selectedPeriod, onPeriodChange }: CostOverviewPro
                   ></div>
                   <span>{provider.name}</span>
                 </div>
-                <span className="font-medium">${provider.value}</span>
+                <span className="font-medium">{formatCurrency(provider.value)}</span>
               </div>
             ))}
           </div>
