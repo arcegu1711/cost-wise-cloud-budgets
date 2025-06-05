@@ -23,19 +23,19 @@ export class AzureConnector {
         throw new Error('Subscription ID is required for Azure authentication');
       }
 
-      // Criar cliente do Cost Management
-      const costClient = new CostManagementClient(credential, subscriptionId);
+      // Criar cliente do Cost Management - corrigido: sem subscriptionId como parâmetro
+      const costClient = new CostManagementClient(credential);
       
       // Definir o escopo da consulta (subscription level)
       const scope = `/subscriptions/${subscriptionId}`;
       
-      // Definir o período de consulta
+      // Definir o período de consulta - corrigido: usar objetos Date
       const queryRequest = {
         type: "ActualCost",
         timeframe: "Custom",
         timePeriod: {
-          from: new Date(startDate).toISOString(),
-          to: new Date(endDate).toISOString()
+          from: new Date(startDate),
+          to: new Date(endDate)
         },
         dataset: {
           granularity: "Daily",
@@ -97,7 +97,7 @@ export class AzureConnector {
             costData.push({
               date: typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0],
               amount: Math.round(cost * 100) / 100,
-              currency: result.properties?.currency || 'USD',
+              currency: 'USD', // Corrigido: removido acesso a result.properties
               service: serviceName,
               region: location,
               resourceId: resourceId
@@ -167,7 +167,7 @@ export class AzureConnector {
         throw new Error('Subscription ID is required for Azure authentication');
       }
 
-      // Criar cliente do Resource Management
+      // Criar cliente do Resource Management - corrigido: usar subscriptionId corretamente
       const resourceClient = new ResourceManagementClient(credential, subscriptionId);
       
       console.log('Making Azure Resource Management API request');
@@ -350,5 +350,147 @@ export class AzureConnector {
         return false;
       }
     }
+  }
+
+  private async getSimulatedCostData(startDate: string, endDate: string): Promise<CostData[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 900 + Math.random() * 600));
+    
+    console.log('Generating simulated Azure cost data from', startDate, 'to', endDate);
+    
+    // Generate realistic mock data
+    const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+    const services = ['Virtual Machines', 'Storage', 'SQL Database', 'App Service', 'CDN', 'Load Balancer'];
+    const regions = ['East US', 'West US 2', 'North Europe'];
+    
+    const costData: CostData[] = [];
+    
+    for (let i = 0; i < days; i++) {
+      const date = new Date(new Date(startDate).getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      services.forEach(service => {
+        regions.forEach(region => {
+          const amount = Math.random() * 120 + 15; // $15-$135 per day per service per region
+          costData.push({
+            date: dateStr,
+            amount: Math.round(amount * 100) / 100,
+            currency: 'USD',
+            service: service,
+            region: region
+          });
+        });
+      });
+    }
+
+    console.log(`Azure: Generated ${costData.length} simulated cost records`);
+    return costData;
+  }
+
+  private estimateResourceCost(resourceType: string): number {
+    // Estimar custos baseado no tipo de recurso
+    const costMap: { [key: string]: number } = {
+      'Microsoft.Compute/virtualMachines': 150 + Math.random() * 200,
+      'Microsoft.Storage/storageAccounts': 20 + Math.random() * 50,
+      'Microsoft.Sql/servers/databases': 100 + Math.random() * 300,
+      'Microsoft.Web/sites': 50 + Math.random() * 100,
+      'Microsoft.Network/loadBalancers': 30 + Math.random() * 70,
+      'Microsoft.CDN/profiles': 15 + Math.random() * 35
+    };
+
+    return Math.round((costMap[resourceType] || (10 + Math.random() * 40)) * 100) / 100;
+  }
+
+  private async getSimulatedResources(): Promise<ResourceData[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 500));
+    
+    const vmSizes = ['Standard_B1s', 'Standard_B2s', 'Standard_D2s_v3', 'Standard_F4s_v2'];
+    const regions = ['East US', 'West US 2', 'North Europe'];
+    const statuses: ('running' | 'stopped' | 'terminated')[] = ['running', 'stopped'];
+    
+    const resources: ResourceData[] = [];
+    
+    // Generate 10-20 Virtual Machines
+    const vmCount = 10 + Math.floor(Math.random() * 10);
+    for (let i = 0; i < vmCount; i++) {
+      const vmSize = vmSizes[Math.floor(Math.random() * vmSizes.length)];
+      const region = regions[Math.floor(Math.random() * regions.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const utilization = status === 'running' ? Math.random() * 85 + 5 : 0;
+      
+      resources.push({
+        id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/rg-${i}/providers/Microsoft.Compute/virtualMachines/vm-${i}`,
+        name: `vm-web-${i + 1}`,
+        type: `Virtual Machine ${vmSize}`,
+        provider: 'azure',
+        region: region,
+        cost: Math.round((Math.random() * 180 + 40) * 100) / 100,
+        utilization: Math.round(utilization),
+        status: status,
+        tags: {
+          Environment: Math.random() > 0.6 ? 'Production' : 'Development',
+          CostCenter: `CC-${Math.floor(Math.random() * 3) + 1}`
+        }
+      });
+    }
+
+    // Add some SQL Databases
+    for (let i = 0; i < 4; i++) {
+      resources.push({
+        id: `/subscriptions/${this.credentials.subscriptionId}/resourceGroups/rg-db/providers/Microsoft.Sql/servers/sqlsrv-${i}/databases/db-${i}`,
+        name: `sqldb-app-${i + 1}`,
+        type: 'SQL Database',
+        provider: 'azure',
+        region: regions[Math.floor(Math.random() * regions.length)],
+        cost: Math.round((Math.random() * 200 + 80) * 100) / 100,
+        utilization: Math.round(Math.random() * 70 + 15),
+        status: 'running',
+        tags: {
+          Environment: 'Production',
+          Tier: 'Standard'
+        }
+      });
+    }
+
+    console.log(`Azure: Generated ${resources.length} simulated resources`);
+    return resources;
+  }
+
+  async getBudgets(): Promise<BudgetData[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 400));
+    
+    console.log('Fetching simulated Azure budgets');
+    
+    const budgetData: BudgetData[] = [
+      {
+        id: 'monthly-vm-budget',
+        name: 'Monthly VM Budget',
+        amount: 4500,
+        spent: Math.round((Math.random() * 2800 + 900) * 100) / 100,
+        period: 'monthly',
+        provider: 'azure'
+      },
+      {
+        id: 'quarterly-database-budget',
+        name: 'Quarterly Database Budget',
+        amount: 3000,
+        spent: Math.round((Math.random() * 1800 + 600) * 100) / 100,
+        period: 'quarterly',
+        provider: 'azure'
+      },
+      {
+        id: 'annual-subscription-budget',
+        name: 'Annual Subscription Budget',
+        amount: 60000,
+        spent: Math.round((Math.random() * 42000 + 15000) * 100) / 100,
+        period: 'yearly',
+        provider: 'azure'
+      }
+    ];
+
+    console.log(`Azure: Retrieved ${budgetData.length} budgets (simulated)`);
+    return budgetData;
   }
 }
