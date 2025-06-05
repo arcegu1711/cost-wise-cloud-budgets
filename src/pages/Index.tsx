@@ -9,6 +9,7 @@ import { CostOverview } from "@/components/dashboard/CostOverview";
 import { BudgetManagement } from "@/components/dashboard/BudgetManagement";
 import { OptimizationRecommendations } from "@/components/dashboard/OptimizationRecommendations";
 import { ResourceUsage } from "@/components/dashboard/ResourceUsage";
+import { CloudConnectionManager } from "@/components/dashboard/CloudConnectionManager";
 import { AlertTriangle, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 
 const Index = () => {
