@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +13,12 @@ import {
   AlertTriangle,
   TrendingDown,
   Calendar,
-  Target
+  Target,
+  ExternalLink,
+  Copy
 } from "lucide-react";
 import { formatCurrency } from "@/utils/currency";
+import { useCloudData } from "@/hooks/useCloudData";
 
 interface OptimizationRecommendation {
   id: number;
@@ -116,15 +118,71 @@ const getDetailedSteps = (recommendation: OptimizationRecommendation) => {
   }
 };
 
+const getAffectedResources = (recommendation: OptimizationRecommendation, resourcesData: any[]) => {
+  if (!recommendation || !resourcesData.length) return [];
+
+  const providerResources = resourcesData.filter(
+    resource => resource.provider === recommendation.provider.toLowerCase()
+  );
+
+  switch (recommendation.category) {
+    case "compute":
+      return providerResources
+        .filter(resource => 
+          resource.type.toLowerCase().includes('virtual machine') ||
+          resource.type.toLowerCase().includes('compute') ||
+          resource.utilization < 30
+        )
+        .slice(0, recommendation.resources);
+    
+    case "storage":
+      return providerResources
+        .filter(resource => 
+          resource.type.toLowerCase().includes('storage') ||
+          resource.type.toLowerCase().includes('disk') ||
+          resource.type.toLowerCase().includes('blob')
+        )
+        .slice(0, recommendation.resources);
+    
+    case "network":
+      return providerResources
+        .filter(resource => 
+          resource.type.toLowerCase().includes('load balancer') ||
+          resource.type.toLowerCase().includes('gateway') ||
+          resource.type.toLowerCase().includes('network')
+        )
+        .slice(0, recommendation.resources);
+    
+    case "commitment":
+      return providerResources
+        .filter(resource => 
+          resource.cost > 500 && // High cost resources suitable for reserved instances
+          (resource.type.toLowerCase().includes('virtual machine') ||
+           resource.type.toLowerCase().includes('database'))
+        )
+        .slice(0, recommendation.resources);
+    
+    default:
+      return providerResources.slice(0, recommendation.resources);
+  }
+};
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text);
+};
+
 export const RecommendationDetailsDialog = ({ recommendation, isOpen, onClose }: RecommendationDetailsDialogProps) => {
+  const { resourcesData } = useCloudData();
+  
   if (!recommendation) return null;
 
   const monthlyROI = recommendation.potential_savings > 0 ? (recommendation.potential_savings * 12) : 0;
   const steps = getDetailedSteps(recommendation);
+  const affectedResources = getAffectedResources(recommendation, resourcesData);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-slate-100 rounded-lg">
@@ -195,6 +253,108 @@ export const RecommendationDetailsDialog = ({ recommendation, isOpen, onClose }:
                   </Badge>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Recursos Afetados */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Server className="h-5 w-5" />
+                <span>Recursos Afetados ({affectedResources.length})</span>
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Compare estes recursos com o portal {recommendation.provider} para validar as oportunidades
+              </p>
+            </CardHeader>
+            <CardContent>
+              {affectedResources.length > 0 ? (
+                <div className="space-y-3">
+                  {affectedResources.map((resource, index) => (
+                    <div key={resource.id} className="border rounded-lg p-4 bg-slate-50">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h4 className="font-medium text-sm">{resource.name}</h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(resource.id)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                            <div>
+                              <span className="font-medium">Tipo:</span> {resource.type}
+                            </div>
+                            <div>
+                              <span className="font-medium">Região:</span> {resource.region}
+                            </div>
+                            <div>
+                              <span className="font-medium">Status:</span> 
+                              <Badge variant="outline" className="ml-1 text-xs">
+                                {resource.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          {resource.utilization && (
+                            <div className="mt-2 text-xs">
+                              <span className="font-medium">Utilização:</span> {resource.utilization}%
+                            </div>
+                          )}
+                          
+                          <div className="mt-2 text-xs text-muted-foreground font-mono bg-white p-2 rounded border">
+                            <span className="font-medium">Resource ID:</span> {resource.id}
+                          </div>
+                        </div>
+                        
+                        <div className="text-right ml-4">
+                          <div className="text-lg font-bold text-blue-600">
+                            {formatCurrency(resource.cost)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">por mês</div>
+                        </div>
+                      </div>
+                      
+                      {resource.tags && Object.keys(resource.tags).length > 0 && (
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="text-xs font-medium mb-1">Tags:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(resource.tags).map(([key, value]) => (
+                              <Badge key={key} variant="secondary" className="text-xs">
+                                {key}: {value}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <ExternalLink className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-blue-800 mb-1">Validação no Portal {recommendation.provider}</p>
+                        <p className="text-blue-700">
+                          Use os Resource IDs acima para localizar e validar estes recursos no portal do {recommendation.provider}. 
+                          Clique no ícone de cópia para copiar o ID de cada recurso.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Server className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Nenhum recurso específico encontrado</p>
+                  <p className="text-xs mt-1">Esta recomendação é baseada em análise geral de custos</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
