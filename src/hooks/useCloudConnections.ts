@@ -28,6 +28,7 @@ export const useCloudConnections = () => {
 
   const loadStoredConnections = async () => {
     try {
+      console.log('Carregando conexões armazenadas...');
       const connections = await supabaseCloudService.getConnections();
       setStoredConnections(connections);
       const status: ConnectionStatus = {};
@@ -40,8 +41,9 @@ export const useCloudConnections = () => {
       }
       
       setConnectionStatus(status);
+      console.log(`Carregadas ${connections.length} conexões`);
     } catch (error) {
-      console.error('Error loading stored connections:', error);
+      console.error('Erro ao carregar conexões armazenadas:', error);
       toast({
         title: "Erro ao carregar conexões",
         description: "Não foi possível carregar as conexões salvas.",
@@ -52,6 +54,7 @@ export const useCloudConnections = () => {
 
   const saveConnection = async (provider: 'aws' | 'azure' | 'gcp', credentials: CloudCredentials, status: boolean) => {
     try {
+      console.log(`Salvando conexão para ${provider}...`);
       await supabaseCloudService.saveConnection(provider, credentials, status);
       setConnectionStatus(prev => ({ ...prev, [provider]: status }));
       
@@ -65,7 +68,7 @@ export const useCloudConnections = () => {
         });
       }
     } catch (error) {
-      console.error('Error saving connection:', error);
+      console.error('Erro ao salvar conexão:', error);
       toast({
         title: "Erro ao salvar conexão",
         description: "Não foi possível salvar a conexão.",
@@ -76,6 +79,7 @@ export const useCloudConnections = () => {
 
   const removeConnection = async (provider: string) => {
     try {
+      console.log(`Removendo conexão para ${provider}...`);
       await supabaseCloudService.removeConnection(provider);
       cloudService.removeProvider(provider);
       setConnectionStatus(prev => ({ ...prev, [provider]: null }));
@@ -88,7 +92,7 @@ export const useCloudConnections = () => {
         description: `Conexão com ${provider.toUpperCase()} removida com sucesso.`,
       });
     } catch (error) {
-      console.error('Error removing connection:', error);
+      console.error('Erro ao remover conexão:', error);
       toast({
         title: "Erro ao remover conexão",
         description: "Não foi possível remover a conexão.",

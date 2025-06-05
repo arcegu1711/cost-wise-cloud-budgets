@@ -14,9 +14,10 @@ export const useCloudData = () => {
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
+  const [syncInProgress, setSyncInProgress] = useState(false);
 
   // Query para dados de custo do banco de dados
-  const { data: costData, isLoading: costLoading, error: costError } = useQuery({
+  const { data: costData, isLoading: costLoading, error: costError, refetch: refetchCosts } = useQuery({
     queryKey: ['cloudCosts', getConnectedProviders()],
     queryFn: () => supabaseCloudService.getCostData(),
     enabled: getConnectedProviders().length > 0,
@@ -24,7 +25,7 @@ export const useCloudData = () => {
   });
 
   // Query para recursos do banco de dados
-  const { data: resourcesData, isLoading: resourcesLoading, error: resourcesError } = useQuery({
+  const { data: resourcesData, isLoading: resourcesLoading, error: resourcesError, refetch: refetchResources } = useQuery({
     queryKey: ['cloudResources', getConnectedProviders()],
     queryFn: () => supabaseCloudService.getResources(),
     enabled: getConnectedProviders().length > 0,
@@ -32,7 +33,7 @@ export const useCloudData = () => {
   });
 
   // Query para orçamentos do banco de dados
-  const { data: budgetsData, isLoading: budgetsLoading, error: budgetsError } = useQuery({
+  const { data: budgetsData, isLoading: budgetsLoading, error: budgetsError, refetch: refetchBudgets } = useQuery({
     queryKey: ['cloudBudgets', getConnectedProviders()],
     queryFn: () => supabaseCloudService.getBudgets(),
     enabled: getConnectedProviders().length > 0,
@@ -42,15 +43,21 @@ export const useCloudData = () => {
   // Função para sincronizar dados dos provedores com o banco
   const syncCloudData = async () => {
     const connectedProviders = getConnectedProviders();
-    if (connectedProviders.length === 0) return;
+    if (connectedProviders.length === 0 || syncInProgress) return;
 
+    setSyncInProgress(true);
+    
     try {
+      console.log('Iniciando sincronização dos dados dos provedores...');
+      
       // Busca dados atualizados dos provedores
       const [newCostData, newResourcesData, newBudgetsData] = await Promise.all([
         cloudService.getAllCostData(dateRange.startDate, dateRange.endDate),
         cloudService.getAllResources(),
         cloudService.getAllBudgets()
       ]);
+
+      console.log('Dados obtidos dos provedores, salvando no banco...');
 
       // Salva os dados no banco
       await Promise.all([
@@ -67,27 +74,31 @@ export const useCloudData = () => {
         })
       ]);
 
+      // Refetch das queries para atualizar os dados na UI
+      await Promise.all([
+        refetchCosts(),
+        refetchResources(),
+        refetchBudgets()
+      ]);
+
+      console.log('Sincronização concluída com sucesso');
+      
       toast({
         title: "Dados sincronizados",
         description: "Dados dos provedores de nuvem atualizados com sucesso.",
       });
 
     } catch (error) {
-      console.error('Error syncing cloud data:', error);
+      console.error('Erro na sincronização dos dados:', error);
       toast({
         title: "Erro na sincronização",
         description: "Não foi possível sincronizar os dados dos provedores.",
         variant: "destructive",
       });
+    } finally {
+      setSyncInProgress(false);
     }
   };
-
-  // Sincroniza automaticamente quando provedores são conectados
-  useEffect(() => {
-    if (getConnectedProviders().length > 0) {
-      syncCloudData();
-    }
-  }, [getConnectedProviders().join(','), dateRange.startDate, dateRange.endDate]);
 
   // Calculate totals and metrics
   const totalSpend = Object.values(costData || {})
@@ -113,7 +124,7 @@ export const useCloudData = () => {
     budgetsData: budgetsData || [],
     
     // Loading states
-    isLoading: costLoading || resourcesLoading || budgetsLoading,
+    isLoading: costLoading || resourcesLoading || budgetsLoading || syncInProgress,
     costLoading,
     resourcesLoading,
     budgetsLoading,
