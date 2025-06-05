@@ -19,131 +19,95 @@ export class GCPConnector {
 
   async getCostData(startDate: string, endDate: string): Promise<CostData[]> {
     try {
-      console.log('Fetching real GCP cost data from', startDate, 'to', endDate);
+      console.log('Simulating GCP cost data fetch from', startDate, 'to', endDate);
       
-      // Initialize Google Cloud Billing client
-      const { CloudBillingClient } = await import('@google-cloud/billing');
+      await new Promise(resolve => setTimeout(resolve, 1100));
       
-      const billing = new CloudBillingClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId,
-      });
+      const mockData: CostData[] = [
+        { date: startDate, amount: 78.90, currency: 'USD', service: 'Compute Engine' },
+        { date: startDate, amount: 34.50, currency: 'USD', service: 'Cloud Storage' },
+        { date: startDate, amount: 19.25, currency: 'USD', service: 'Cloud SQL' },
+      ];
 
-      // Get billing account
-      const [accounts] = await billing.listBillingAccounts();
-      
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No billing accounts found');
-      }
-
-      const billingAccountName = accounts[0].name!;
-      
-      // Note: GCP doesn't have a direct cost API like AWS Cost Explorer
-      // You would typically use BigQuery to query billing export data
-      // This is a simplified version that would need BigQuery setup
-      
-      console.log('GCP cost data requires BigQuery billing export setup');
-      console.log('Billing account found:', billingAccountName);
-      
-      // Return empty for now as real implementation requires BigQuery
-      return [];
-      
+      return mockData;
     } catch (error) {
-      console.error('Error fetching GCP cost data:', error);
+      console.error('Error simulating GCP cost data:', error);
       throw new Error(`Failed to fetch GCP cost data: ${error}`);
     }
   }
 
   async getResources(): Promise<ResourceData[]> {
     try {
-      console.log('Fetching real GCP resources');
+      console.log('Simulating GCP resources fetch');
       
-      const resourceManager = await import('@google-cloud/resource-manager');
+      await new Promise(resolve => setTimeout(resolve, 850));
       
-      const client = new resourceManager.v3.ProjectsClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId,
-      });
+      const mockResources: ResourceData[] = [
+        {
+          id: `projects/${this.projectId}/zones/us-central1-a/instances/web-server-1`,
+          name: 'Web Server Instance',
+          type: 'Compute Engine n1-standard-2',
+          provider: 'gcp',
+          region: 'us-central1',
+          cost: 52.40,
+          utilization: 68,
+          status: 'running',
+          tags: { env: 'production', team: 'frontend' },
+        },
+        {
+          id: `projects/${this.projectId}`,
+          name: this.projectId,
+          type: 'Project',
+          provider: 'gcp',
+          region: 'global',
+          cost: 0,
+          utilization: 0,
+          status: 'running',
+          tags: {},
+        },
+      ];
 
-      const resources: ResourceData[] = [];
-      
-      // Get project information
-      try {
-        const [project] = await client.getProject({
-          name: `projects/${this.projectId}`,
-        });
-
-        if (project) {
-          resources.push({
-            id: project.projectId || this.projectId,
-            name: project.displayName || project.projectId || this.projectId,
-            type: 'Project',
-            provider: 'gcp',
-            region: 'global',
-            cost: 0,
-            utilization: 0,
-            status: project.state === 'ACTIVE' ? 'running' : 'stopped',
-            tags: project.labels || {},
-          });
-        }
-      } catch (projectError) {
-        console.warn('Could not fetch project details:', projectError);
-      }
-
-      // To get more detailed resources (VMs, storage, etc.), you would need
-      // to use specific service clients like Compute Engine API
-      
-      return resources;
+      return mockResources;
     } catch (error) {
-      console.error('Error fetching GCP resources:', error);
+      console.error('Error simulating GCP resources:', error);
       throw new Error(`Failed to fetch GCP resources: ${error}`);
     }
   }
 
   async getBudgets(): Promise<BudgetData[]> {
     try {
-      console.log('Fetching real GCP budgets');
+      console.log('Simulating GCP budgets fetch');
       
-      const { CloudBillingClient } = await import('@google-cloud/billing');
+      await new Promise(resolve => setTimeout(resolve, 750));
       
-      const billing = new CloudBillingClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId,
-      });
+      const mockBudgets: BudgetData[] = [
+        {
+          id: 'gcp-budget-main',
+          name: 'Main Project Budget',
+          amount: 600,
+          spent: 387.65,
+          period: 'monthly',
+          provider: 'gcp',
+        },
+      ];
 
-      // Get billing account
-      const [accounts] = await billing.listBillingAccounts();
-      
-      if (!accounts || accounts.length === 0) {
-        return [];
-      }
-
-      // GCP budgets are managed through the Cloud Billing Budget API
-      // This requires additional setup and permissions
-      console.log('GCP budget fetching requires Cloud Billing Budget API setup');
-      
-      return [];
+      return mockBudgets;
     } catch (error) {
-      console.error('Error fetching GCP budgets:', error);
+      console.error('Error simulating GCP budgets:', error);
       throw new Error(`Failed to fetch GCP budgets: ${error}`);
     }
   }
 
   async testConnection(): Promise<boolean> {
     try {
-      console.log('Testing real GCP connection');
+      console.log('Testing simulated GCP connection');
       
-      const resourceManager = await import('@google-cloud/resource-manager');
+      await new Promise(resolve => setTimeout(resolve, 550));
       
-      const client = new resourceManager.v3.ProjectsClient({
-        credentials: this.serviceAccountKey,
-        projectId: this.projectId,
-      });
-
-      // Test by getting project info
-      await client.getProject({
-        name: `projects/${this.projectId}`,
-      });
+      // Validate credentials format
+      if (!this.projectId || !this.serviceAccountKey) {
+        return false;
+      }
       
       return true;
     } catch (error) {
