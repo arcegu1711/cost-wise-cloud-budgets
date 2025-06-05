@@ -211,7 +211,7 @@ const Index = () => {
 
             <TabsContent value="optimization" className="space-y-6">
               <OptimizationRecommendations />
-            </TabContent>
+            </TabsContent>
 
             <TabsContent value="resources" className="space-y-6">
               <ResourceUsage />
