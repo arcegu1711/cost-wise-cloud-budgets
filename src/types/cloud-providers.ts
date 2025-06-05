@@ -1,13 +1,17 @@
 
 export interface CloudCredentials {
   provider: 'aws' | 'azure' | 'gcp';
+  // AWS
   accessKeyId?: string;
   secretAccessKey?: string;
   region?: string;
+  accountId?: string;
+  // Azure
   subscriptionId?: string;
   tenantId?: string;
   clientId?: string;
   clientSecret?: string;
+  // GCP
   projectId?: string;
   serviceAccountKey?: string;
 }

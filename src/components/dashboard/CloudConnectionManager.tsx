@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cloudService } from '@/services/cloud-integration';
 import { CloudCredentials } from '@/types/cloud-providers';
 import { Cloud, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export const CloudConnectionManager = () => {
   const [awsCredentials, setAwsCredentials] = useState<Partial<CloudCredentials>>({});
@@ -16,6 +16,7 @@ export const CloudConnectionManager = () => {
   const [gcpCredentials, setGcpCredentials] = useState<Partial<CloudCredentials>>({});
   const [connectionStatus, setConnectionStatus] = useState<Record<string, boolean | null>>({});
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   const handleConnect = async (provider: 'aws' | 'azure' | 'gcp', credentials: Partial<CloudCredentials>) => {
     setIsLoading({ ...isLoading, [provider]: true });
@@ -24,9 +25,27 @@ export const CloudConnectionManager = () => {
       cloudService.addProvider(provider, { ...credentials, provider } as CloudCredentials);
       const testResult = await cloudService.testAllConnections();
       setConnectionStatus({ ...connectionStatus, [provider]: testResult[provider] });
+      
+      if (testResult[provider]) {
+        toast({
+          title: "Conexão bem-sucedida",
+          description: `Conectado com sucesso ao ${provider.toUpperCase()}`,
+        });
+      } else {
+        toast({
+          title: "Erro de conexão",
+          description: `Falha ao conectar com ${provider.toUpperCase()}. Verifique suas credenciais.`,
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error(`Failed to connect to ${provider}:`, error);
       setConnectionStatus({ ...connectionStatus, [provider]: false });
+      toast({
+        title: "Erro de conexão",
+        description: `Erro ao conectar: ${error}`,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading({ ...isLoading, [provider]: false });
     }
@@ -74,7 +93,7 @@ export const CloudConnectionManager = () => {
           <CardTitle>Conexões com Provedores de Nuvem</CardTitle>
         </div>
         <CardDescription>
-          Configure as credenciais para conectar com AWS, Azure e Google Cloud Platform
+          Configure as credenciais para conectar com AWS, Azure e Google Cloud Platform usando APIs reais
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -123,6 +142,15 @@ export const CloudConnectionManager = () => {
                   placeholder="us-east-1"
                   value={awsCredentials.region || ''}
                   onChange={(e) => setAwsCredentials({ ...awsCredentials, region: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="aws-account-id">Account ID (opcional)</Label>
+                <Input
+                  id="aws-account-id"
+                  placeholder="123456789012"
+                  value={awsCredentials.accountId || ''}
+                  onChange={(e) => setAwsCredentials({ ...awsCredentials, accountId: e.target.value })}
                 />
               </div>
             </div>
