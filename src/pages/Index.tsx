@@ -80,11 +80,12 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Cost Overview</TabsTrigger>
             <TabsTrigger value="budgets">Budget Management</TabsTrigger>
             <TabsTrigger value="optimization">Optimization</TabsTrigger>
             <TabsTrigger value="resources">Resource Usage</TabsTrigger>
+            <TabsTrigger value="connections">Cloud Connections</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -101,6 +102,10 @@ const Index = () => {
 
           <TabsContent value="resources" className="space-y-6">
             <ResourceUsage />
+          </TabsContent>
+
+          <TabsContent value="connections" className="space-y-6">
+            <CloudConnectionManager />
           </TabsContent>
         </Tabs>
       </main>
