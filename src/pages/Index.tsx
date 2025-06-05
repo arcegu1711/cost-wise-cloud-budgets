@@ -28,9 +28,8 @@ const Index = () => {
     isLoading 
   } = useCloudData();
 
-  // Calculate potential savings (mock calculation)
-  const potentialSavings = totalSpend * 0.15; // Assume 15% potential savings
-
+  // Calculate potential savings (15% of total spend)
+  const potentialSavings = totalSpend * 0.15;
   const remainingBudget = totalBudget - totalBudgetSpent;
 
   return (
@@ -71,17 +70,29 @@ const Index = () => {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Carregando...</span>
                   </div>
-                ) : (
+                ) : connectedProviders.length > 0 ? (
                   <>
                     <div className="text-2xl font-bold">
-                      {connectedProviders.length > 0 ? formatCurrencyCompact(totalSpend) : 'R$ 62.295'}
+                      {formatCurrencyCompact(totalSpend)}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-red-500 inline-flex items-center">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        +12.5%
-                      </span>
-                      do mês passado
+                      {totalSpend > 0 ? (
+                        <span className="text-red-500 inline-flex items-center">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Dados reais do Azure
+                        </span>
+                      ) : (
+                        'Nenhum custo encontrado'
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-gray-400">
+                      --
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Conecte um provedor para ver dados
                     </p>
                   </>
                 )}
@@ -99,19 +110,22 @@ const Index = () => {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Carregando...</span>
                   </div>
-                ) : (
+                ) : connectedProviders.length > 0 && totalBudget > 0 ? (
                   <>
                     <div className="text-2xl font-bold">
-                      {connectedProviders.length > 0 && totalBudget > 0 
-                        ? `${budgetUtilization.toFixed(0)}%` 
-                        : '78%'
-                      }
+                      {budgetUtilization.toFixed(0)}%
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {connectedProviders.length > 0 && remainingBudget > 0 
-                        ? formatCurrencyCompact(remainingBudget) 
-                        : 'R$ 11.000'
-                      } restantes este mês
+                      {formatCurrencyCompact(remainingBudget)} restantes
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-gray-400">
+                      --
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {connectedProviders.length === 0 ? 'Conecte um provedor' : 'Nenhum orçamento configurado'}
                     </p>
                   </>
                 )}
@@ -129,13 +143,22 @@ const Index = () => {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Carregando...</span>
                   </div>
-                ) : (
+                ) : connectedProviders.length > 0 && totalSpend > 0 ? (
                   <>
                     <div className="text-2xl font-bold text-green-600">
-                      {connectedProviders.length > 0 ? formatCurrencyCompact(potentialSavings) : 'R$ 16.235'}
+                      {formatCurrencyCompact(potentialSavings)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Economia potencial mensal
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-gray-400">
+                      --
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Conecte um provedor para ver economia
                     </p>
                   </>
                 )}
@@ -153,13 +176,22 @@ const Index = () => {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Carregando...</span>
                   </div>
-                ) : (
+                ) : connectedProviders.length > 0 ? (
                   <>
                     <div className="text-2xl font-bold">
-                      {connectedProviders.length > 0 ? totalResources : '1.247'}
+                      {totalResources.toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Em {connectedProviders.length || 3} provedores de nuvem
+                      Em {connectedProviders.length} {connectedProviders.length === 1 ? 'provedor' : 'provedores'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-gray-400">
+                      --
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Conecte um provedor para ver recursos
                     </p>
                   </>
                 )}
@@ -176,7 +208,7 @@ const Index = () => {
                     <div>
                       <h3 className="font-semibold">Provedores Conectados</h3>
                       <p className="text-sm text-muted-foreground">
-                        Dados sendo coletados em tempo real
+                        Dados sendo coletados em tempo real do Azure
                       </p>
                     </div>
                     <div className="flex space-x-2">

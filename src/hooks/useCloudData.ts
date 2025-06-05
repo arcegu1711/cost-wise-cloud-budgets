@@ -50,26 +50,33 @@ export const useCloudData = () => {
     try {
       console.log('Iniciando sincronização dos dados dos provedores...');
       
-      // Busca dados atualizados dos provedores
+      // Busca dados atualizados dos provedores usando backend service
       const [newCostData, newResourcesData, newBudgetsData] = await Promise.all([
         cloudService.getAllCostData(dateRange.startDate, dateRange.endDate),
         cloudService.getAllResources(),
         cloudService.getAllBudgets()
       ]);
 
-      console.log('Dados obtidos dos provedores, salvando no banco...');
+      console.log('Dados obtidos dos provedores:', {
+        costData: newCostData,
+        resourcesData: newResourcesData,
+        budgetsData: newBudgetsData
+      });
 
       // Salva os dados no banco
       await Promise.all([
-        ...Object.entries(newCostData).map(([provider, costs]) => 
-          supabaseCloudService.saveCostData(provider, costs)
-        ),
+        ...Object.entries(newCostData).map(([provider, costs]) => {
+          console.log(`Salvando ${costs.length} registros de custo para ${provider}`);
+          return supabaseCloudService.saveCostData(provider, costs);
+        }),
         ...connectedProviders.map(provider => {
           const providerResources = newResourcesData.filter(r => r.provider === provider);
+          console.log(`Salvando ${providerResources.length} recursos para ${provider}`);
           return supabaseCloudService.saveResources(provider, providerResources);
         }),
         ...connectedProviders.map(provider => {
           const providerBudgets = newBudgetsData.filter(b => b.provider === provider);
+          console.log(`Salvando ${providerBudgets.length} orçamentos para ${provider}`);
           return supabaseCloudService.saveBudgets(provider, providerBudgets);
         })
       ]);
@@ -100,7 +107,7 @@ export const useCloudData = () => {
     }
   };
 
-  // Calculate totals and metrics - corrigido para processar dados do banco
+  // Calculate totals and metrics - usando apenas dados reais
   const totalSpend = costData ? 
     Object.values(costData).flat().reduce((sum, cost) => sum + cost.amount, 0) : 0;
 
@@ -116,18 +123,24 @@ export const useCloudData = () => {
 
   const connectedProviders = getConnectedProviders();
 
-  // Log para debug
+  // Log para debug - com mais detalhes
   useEffect(() => {
     if (costData) {
-      console.log('Cost data received:', costData);
+      console.log('Cost data received from database:', costData);
       console.log('Total spend calculated:', totalSpend);
+      
+      // Log detalhado dos custos por provedor
+      Object.entries(costData).forEach(([provider, costs]) => {
+        const providerTotal = costs.reduce((sum, cost) => sum + cost.amount, 0);
+        console.log(`${provider}: ${costs.length} registros, total: ${providerTotal}`);
+      });
     }
     if (resourcesData) {
-      console.log('Resources data received:', resourcesData);
+      console.log('Resources data received from database:', resourcesData);
       console.log('Total resources:', totalResources);
     }
     if (budgetsData) {
-      console.log('Budgets data received:', budgetsData);
+      console.log('Budgets data received from database:', budgetsData);
       console.log('Total budget:', totalBudget);
     }
   }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget]);
