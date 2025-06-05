@@ -9,8 +9,15 @@ interface ConnectionStatus {
   [provider: string]: boolean | null;
 }
 
+interface StoredConnection {
+  provider: string;
+  credentials: any;
+  is_active: boolean;
+}
+
 export const useCloudConnections = () => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({});
+  const [storedConnections, setStoredConnections] = useState<StoredConnection[]>([]);
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
@@ -22,6 +29,7 @@ export const useCloudConnections = () => {
   const loadStoredConnections = async () => {
     try {
       const connections = await supabaseCloudService.getConnections();
+      setStoredConnections(connections);
       const status: ConnectionStatus = {};
       
       for (const connection of connections) {
@@ -47,6 +55,9 @@ export const useCloudConnections = () => {
       await supabaseCloudService.saveConnection(provider, credentials, status);
       setConnectionStatus(prev => ({ ...prev, [provider]: status }));
       
+      // Update stored connections
+      await loadStoredConnections();
+      
       if (status) {
         toast({
           title: "Conexão salva",
@@ -69,6 +80,9 @@ export const useCloudConnections = () => {
       cloudService.removeProvider(provider);
       setConnectionStatus(prev => ({ ...prev, [provider]: null }));
       
+      // Update stored connections
+      await loadStoredConnections();
+      
       toast({
         title: "Conexão removida",
         description: `Conexão com ${provider.toUpperCase()} removida com sucesso.`,
@@ -89,6 +103,10 @@ export const useCloudConnections = () => {
       .map(([provider, _]) => provider);
   };
 
+  const getConnectionData = (provider: string) => {
+    return storedConnections.find(conn => conn.provider === provider);
+  };
+
   return {
     connectionStatus,
     isLoading,
@@ -96,6 +114,7 @@ export const useCloudConnections = () => {
     saveConnection,
     removeConnection,
     getConnectedProviders,
+    getConnectionData,
     loadStoredConnections
   };
 };

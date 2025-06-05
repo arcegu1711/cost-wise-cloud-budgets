@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,8 @@ export const CloudConnectionManager = () => {
     setIsLoading, 
     saveConnection, 
     removeConnection,
-    getConnectedProviders 
+    getConnectedProviders,
+    getConnectionData
   } = useCloudConnections();
   
   const {
@@ -151,6 +153,22 @@ export const CloudConnectionManager = () => {
     };
   };
 
+  const getProviderDisplayName = (provider: string) => {
+    const connectionData = getConnectionData(provider);
+    const accountName = connectionData?.credentials?.accountName;
+    
+    if (accountName) {
+      return (
+        <div>
+          <h3 className="font-semibold capitalize">{provider}</h3>
+          <p className="text-sm text-muted-foreground">{accountName}</p>
+        </div>
+      );
+    }
+    
+    return <h3 className="font-semibold capitalize">{provider}</h3>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Connection Status Overview */}
@@ -183,7 +201,7 @@ export const CloudConnectionManager = () => {
                 return (
                   <div key={provider} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold capitalize">{provider}</h3>
+                      {getProviderDisplayName(provider)}
                       {getStatusBadge(provider)}
                     </div>
                     
