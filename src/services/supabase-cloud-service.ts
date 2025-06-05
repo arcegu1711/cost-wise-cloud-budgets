@@ -12,7 +12,7 @@ export class SupabaseCloudService {
       .upsert({
         user_id: user.id,
         provider,
-        credentials,
+        credentials: credentials as any, // Cast to any for JSON storage
         is_active: isActive,
         last_sync_at: isActive ? new Date().toISOString() : null,
         updated_at: new Date().toISOString()
@@ -142,7 +142,7 @@ export class SupabaseCloudService {
       cost: resource.cost,
       utilization: resource.utilization,
       status: resource.status,
-      tags: resource.tags
+      tags: resource.tags as any // Cast to any for JSON storage
     }));
 
     const { data, error } = await supabase
@@ -175,7 +175,7 @@ export class SupabaseCloudService {
       cost: row.cost || 0,
       utilization: row.utilization || 0,
       status: row.status as 'running' | 'stopped' | 'terminated',
-      tags: row.tags as Record<string, string>
+      tags: (row.tags as Record<string, string>) || {}
     })) || [];
   }
 

@@ -25,8 +25,9 @@ export const useCloudConnections = () => {
       const status: ConnectionStatus = {};
       
       for (const connection of connections) {
-        // Re-add the provider to cloudService
-        cloudService.addProvider(connection.provider as 'aws' | 'azure' | 'gcp', connection.credentials as CloudCredentials);
+        // Re-add the provider to cloudService with type casting
+        const credentials = connection.credentials as unknown as CloudCredentials;
+        cloudService.addProvider(connection.provider as 'aws' | 'azure' | 'gcp', credentials);
         status[connection.provider] = connection.is_active;
       }
       
