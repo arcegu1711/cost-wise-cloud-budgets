@@ -38,6 +38,8 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Unsupported provider: ${provider}`);
     }
 
+    console.log(`Successfully retrieved ${budgets.length} budgets for ${provider}`);
+
     return new Response(JSON.stringify(budgets), {
       status: 200,
       headers: {
@@ -58,117 +60,84 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function fetchAWSBudgets(credentials: any) {
-  // Aqui implementaríamos a chamada real para AWS Budgets API
-  console.log("Fetching AWS budgets with credentials:", credentials.accessKeyId);
-  
-  return [
-    {
-      id: 'monthly-compute-budget',
-      name: 'Monthly Compute Budget',
-      amount: 5000,
-      spent: Math.round((Math.random() * 3000 + 1000) * 100) / 100,
-      period: 'monthly',
-      provider: 'aws'
-    },
-    {
-      id: 'quarterly-storage-budget',
-      name: 'Quarterly Storage Budget',
-      amount: 2000,
-      spent: Math.round((Math.random() * 1200 + 400) * 100) / 100,
-      period: 'quarterly',
-      provider: 'aws'
-    }
-  ];
+  console.log("AWS budgets not yet implemented - returning empty array");
+  return [];
 }
 
 async function fetchAzureBudgets(credentials: any) {
-  console.log("Fetching Azure budgets with subscription:", credentials.subscriptionId);
+  console.log("Fetching REAL Azure budgets with subscription:", credentials.subscriptionId);
   
   try {
     // Get Azure access token
     const accessToken = await getAzureAccessToken();
+    console.log("Successfully obtained Azure access token for budgets");
     
     // Call Azure Consumption API for budgets
-    const budgetsResponse = await fetch(
-      `https://management.azure.com/subscriptions/${credentials.subscriptionId}/providers/Microsoft.Consumption/budgets?api-version=2021-10-01`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+    const budgetsUrl = `https://management.azure.com/subscriptions/${credentials.subscriptionId}/providers/Microsoft.Consumption/budgets?api-version=2021-10-01`;
+    
+    console.log("Making request to Azure Budgets API:", budgetsUrl);
+    
+    const budgetsResponse = await fetch(budgetsUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
       }
-    );
+    });
 
     if (!budgetsResponse.ok) {
-      console.error('Azure Budgets API Error:', await budgetsResponse.text());
-      // If budgets API fails, return some default budgets
-      return [
-        {
-          id: 'monthly-vm-budget',
-          name: 'Monthly VM Budget',
-          amount: 4500,
-          spent: Math.round((Math.random() * 2800 + 900) * 100) / 100,
-          period: 'monthly',
-          provider: 'azure'
-        },
-        {
-          id: 'quarterly-database-budget',
-          name: 'Quarterly Database Budget',
-          amount: 3000,
-          spent: Math.round((Math.random() * 1800 + 600) * 100) / 100,
-          period: 'quarterly',
-          provider: 'azure'
-        }
-      ];
+      const errorText = await budgetsResponse.text();
+      console.error('Azure Budgets API Error Response:', errorText);
+      console.error('Azure Budgets API Status:', budgetsResponse.status);
+      
+      // Azure Budgets API often returns 404 if no budgets are configured
+      if (budgetsResponse.status === 404) {
+        console.warn("No budgets configured in Azure subscription");
+        return [];
+      }
+      
+      throw new Error(`Azure Budgets API returned ${budgetsResponse.status}: ${errorText}`);
     }
 
     const budgetsResult = await budgetsResponse.json();
-    console.log(`Retrieved ${budgetsResult.value?.length || 0} budgets from Azure`);
+    console.log(`Azure Budgets API returned ${budgetsResult.value?.length || 0} budgets`);
+    
+    if (!budgetsResult.value || budgetsResult.value.length === 0) {
+      console.warn("No budgets found in Azure subscription");
+      return [];
+    }
     
     // Transform Azure budget data to our format
-    const budgets = (budgetsResult.value || []).map((budget: any) => {
+    const budgets = budgetsResult.value.map((budget: any) => {
       const currentSpend = budget.properties?.currentSpend?.amount || 0;
-      const budgetAmount = budget.properties?.amount || 1000;
+      const budgetAmount = budget.properties?.amount || 0;
       
-      return {
-        id: budget.name,
-        name: budget.properties?.displayName || budget.name,
+      const transformedBudget = {
+        id: budget.name || budget.id,
+        name: budget.properties?.displayName || budget.name || 'Unknown Budget',
         amount: parseFloat(budgetAmount),
         spent: parseFloat(currentSpend),
         period: budget.properties?.timeGrain?.toLowerCase() || 'monthly',
         provider: 'azure'
       };
+      
+      console.log(`Transformed budget: ${transformedBudget.name} - ${transformedBudget.spent}/${transformedBudget.amount} (${transformedBudget.period})`);
+      return transformedBudget;
     });
 
-    // If no budgets found, return some default ones
-    if (budgets.length === 0) {
-      return [
-        {
-          id: 'default-monthly-budget',
-          name: 'Default Monthly Budget',
-          amount: 1000,
-          spent: Math.round((Math.random() * 600 + 200) * 100) / 100,
-          period: 'monthly',
-          provider: 'azure'
-        }
-      ];
-    }
-
+    console.log(`Successfully transformed ${budgets.length} Azure budgets`);
     return budgets;
     
   } catch (error) {
-    console.error('Error fetching Azure budgets:', error);
-    // Return default budgets if there's an error
-    return [
-      {
-        id: 'fallback-monthly-budget',
-        name: 'Monthly Budget',
-        amount: 2000,
-        spent: Math.round((Math.random() * 1200 + 400) * 100) / 100,
-        period: 'monthly',
-        provider: 'azure'
-      }
-    ];
+    console.error('Critical error fetching Azure budgets:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      subscriptionId: credentials.subscriptionId
+    });
+    
+    // For budgets, we can return empty array if there's an error since budgets are optional
+    console.warn("Returning empty budgets array due to error");
+    return [];
   }
 }
 
@@ -178,7 +147,7 @@ async function getAzureAccessToken(): Promise<string> {
   const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET');
 
   if (!tenantId || !clientId || !clientSecret) {
-    throw new Error('Azure credentials not configured');
+    throw new Error('Azure credentials not configured in Supabase secrets');
   }
 
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
@@ -209,27 +178,8 @@ async function getAzureAccessToken(): Promise<string> {
 }
 
 async function fetchGCPBudgets(credentials: any) {
-  // Aqui implementaríamos a chamada real para GCP Cloud Billing API
-  console.log("Fetching GCP budgets for project:", credentials.projectId);
-  
-  return [
-    {
-      id: 'monthly-compute-budget',
-      name: 'Monthly Compute Budget',
-      amount: 3500,
-      spent: Math.round((Math.random() * 2200 + 800) * 100) / 100,
-      period: 'monthly',
-      provider: 'gcp'
-    },
-    {
-      id: 'quarterly-storage-budget',
-      name: 'Quarterly Storage Budget',
-      amount: 1500,
-      spent: Math.round((Math.random() * 900 + 300) * 100) / 100,
-      period: 'quarterly',
-      provider: 'gcp'
-    }
-  ];
+  console.log("GCP budgets not yet implemented - returning empty array");
+  return [];
 }
 
 serve(handler);
