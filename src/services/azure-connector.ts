@@ -51,7 +51,7 @@ export class AzureConnector {
     
     const vmSizes = ['Standard_B1s', 'Standard_B2s', 'Standard_D2s_v3', 'Standard_F4s_v2'];
     const regions = ['East US', 'West US 2', 'North Europe'];
-    const statuses = ['running', 'stopped', 'deallocated'];
+    const statuses: ('running' | 'stopped' | 'terminated')[] = ['running', 'stopped'];
     
     const resources: ResourceData[] = [];
     

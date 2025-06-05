@@ -60,7 +60,7 @@ export class GCPConnector {
     
     const machineTypes = ['e2-micro', 'e2-small', 'e2-medium', 'n1-standard-1', 'n1-standard-2'];
     const zones = ['us-central1-a', 'us-east1-b', 'europe-west1-c'];
-    const statuses = ['RUNNING', 'TERMINATED', 'STOPPED'];
+    const statuses: ('running' | 'stopped' | 'terminated')[] = ['running', 'terminated', 'stopped'];
     
     const resources: ResourceData[] = [];
     
@@ -86,7 +86,7 @@ export class GCPConnector {
       const machineType = machineTypes[Math.floor(Math.random() * machineTypes.length)];
       const zone = zones[Math.floor(Math.random() * zones.length)];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
-      const utilization = status === 'RUNNING' ? Math.random() * 75 + 10 : 0;
+      const utilization = status === 'running' ? Math.random() * 75 + 10 : 0;
       
       resources.push({
         id: `projects/${this.projectId}/zones/${zone}/instances/instance-${i}`,
@@ -96,7 +96,7 @@ export class GCPConnector {
         region: zone.substring(0, zone.lastIndexOf('-')),
         cost: Math.round((Math.random() * 160 + 30) * 100) / 100,
         utilization: Math.round(utilization),
-        status: status.toLowerCase(),
+        status: status,
         tags: {
           environment: Math.random() > 0.5 ? 'production' : 'development',
           team: `team-${Math.floor(Math.random() * 4) + 1}`

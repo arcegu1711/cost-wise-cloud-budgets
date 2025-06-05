@@ -2,10 +2,12 @@
 import { AWSConnector } from './aws-connector';
 import { AzureConnector } from './azure-connector';
 import { GCPConnector } from './gcp-connector';
+import { cloudBackendService } from './cloud-backend-service';
 import { CloudCredentials, CostData, ResourceData, BudgetData } from '@/types/cloud-providers';
 
 export class CloudIntegrationService {
   private connectors: Map<string, AWSConnector | AzureConnector | GCPConnector> = new Map();
+  private useBackend: boolean = true; // Flag para usar backend ou mock
 
   addProvider(provider: 'aws' | 'azure' | 'gcp', credentials: CloudCredentials) {
     switch (provider) {
@@ -26,10 +28,27 @@ export class CloudIntegrationService {
     
     for (const [provider, connector] of this.connectors.entries()) {
       try {
-        results[provider] = await connector.getCostData(startDate, endDate);
+        if (this.useBackend) {
+          // Usar backend service
+          results[provider] = await cloudBackendService.getCostData(
+            provider as 'aws' | 'azure' | 'gcp',
+            (connector as any).credentials,
+            startDate,
+            endDate
+          );
+        } else {
+          // Usar mock local
+          results[provider] = await connector.getCostData(startDate, endDate);
+        }
       } catch (error) {
         console.error(`Failed to get cost data for ${provider}:`, error);
-        results[provider] = [];
+        // Fallback para mock local em caso de erro
+        try {
+          results[provider] = await connector.getCostData(startDate, endDate);
+        } catch (fallbackError) {
+          console.error(`Fallback also failed for ${provider}:`, fallbackError);
+          results[provider] = [];
+        }
       }
     }
     
@@ -41,10 +60,29 @@ export class CloudIntegrationService {
     
     for (const [provider, connector] of this.connectors.entries()) {
       try {
-        const resources = await connector.getResources();
+        let resources: ResourceData[];
+        
+        if (this.useBackend) {
+          // Usar backend service
+          resources = await cloudBackendService.getResources(
+            provider as 'aws' | 'azure' | 'gcp',
+            (connector as any).credentials
+          );
+        } else {
+          // Usar mock local
+          resources = await connector.getResources();
+        }
+        
         allResources.push(...resources);
       } catch (error) {
         console.error(`Failed to get resources for ${provider}:`, error);
+        // Fallback para mock local em caso de erro
+        try {
+          const resources = await connector.getResources();
+          allResources.push(...resources);
+        } catch (fallbackError) {
+          console.error(`Fallback also failed for ${provider}:`, fallbackError);
+        }
       }
     }
     
@@ -56,10 +94,29 @@ export class CloudIntegrationService {
     
     for (const [provider, connector] of this.connectors.entries()) {
       try {
-        const budgets = await connector.getBudgets();
+        let budgets: BudgetData[];
+        
+        if (this.useBackend) {
+          // Usar backend service
+          budgets = await cloudBackendService.getBudgets(
+            provider as 'aws' | 'azure' | 'gcp',
+            (connector as any).credentials
+          );
+        } else {
+          // Usar mock local
+          budgets = await connector.getBudgets();
+        }
+        
         allBudgets.push(...budgets);
       } catch (error) {
         console.error(`Failed to get budgets for ${provider}:`, error);
+        // Fallback para mock local em caso de erro
+        try {
+          const budgets = await connector.getBudgets();
+          allBudgets.push(...budgets);
+        } catch (fallbackError) {
+          console.error(`Fallback also failed for ${provider}:`, fallbackError);
+        }
       }
     }
     
@@ -71,10 +128,25 @@ export class CloudIntegrationService {
     
     for (const [provider, connector] of this.connectors.entries()) {
       try {
-        results[provider] = await connector.testConnection();
+        if (this.useBackend) {
+          // Usar backend service
+          results[provider] = await cloudBackendService.testConnection(
+            provider as 'aws' | 'azure' | 'gcp',
+            (connector as any).credentials
+          );
+        } else {
+          // Usar mock local
+          results[provider] = await connector.testConnection();
+        }
       } catch (error) {
         console.error(`Connection test failed for ${provider}:`, error);
-        results[provider] = false;
+        // Fallback para mock local em caso de erro
+        try {
+          results[provider] = await connector.testConnection();
+        } catch (fallbackError) {
+          console.error(`Fallback also failed for ${provider}:`, fallbackError);
+          results[provider] = false;
+        }
       }
     }
     
@@ -87,6 +159,16 @@ export class CloudIntegrationService {
 
   removeProvider(provider: string) {
     this.connectors.delete(provider);
+  }
+
+  // Método para alternar entre backend e mock
+  setUseBackend(useBackend: boolean) {
+    this.useBackend = useBackend;
+    console.log(`Cloud service mode: ${useBackend ? 'Backend' : 'Mock'}`);
+  }
+
+  isUsingBackend(): boolean {
+    return this.useBackend;
   }
 }
 

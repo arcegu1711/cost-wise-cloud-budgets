@@ -51,7 +51,7 @@ export class AWSConnector {
     
     const instanceTypes = ['t3.micro', 't3.small', 't3.medium', 'm5.large', 'c5.xlarge'];
     const regions = ['us-east-1', 'us-west-2', 'eu-west-1'];
-    const statuses = ['running', 'stopped'];
+    const statuses: ('running' | 'stopped' | 'terminated')[] = ['running', 'stopped'];
     
     const resources: ResourceData[] = [];
     

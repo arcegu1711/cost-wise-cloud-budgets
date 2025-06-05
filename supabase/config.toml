@@ -1,1 +1,22 @@
+
 project_id = "bzmeuyvricmshgwoohrs"
+
+[auth]
+enabled = true
+site_url = "https://lovable.dev"
+additional_redirect_urls = ["https://luckly-suited-turtle.lovable.app"]
+
+[functions]
+import_map = "./functions/_shared/import_map.json"
+
+[functions.cloud-cost-data]
+verify_jwt = false
+
+[functions.cloud-resources]
+verify_jwt = false
+
+[functions.cloud-budgets]
+verify_jwt = false
+
+[functions.cloud-test-connection]
+verify_jwt = false
