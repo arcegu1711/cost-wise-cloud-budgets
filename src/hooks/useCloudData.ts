@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cloudService } from '@/services/cloud-integration';
@@ -10,11 +9,15 @@ import { useToast } from '@/hooks/use-toast';
 export const useCloudData = () => {
   const { getConnectedProviders } = useCloudConnections();
   const { toast } = useToast();
+  
+  // Use Azure's billing period: June 1-30, 2025
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: '2025-06-01',
+    endDate: '2025-06-30'
   });
   const [syncInProgress, setSyncInProgress] = useState(false);
+
+  console.log('useCloudData initialized with Azure billing period:', dateRange);
 
   // Query para dados de custo do banco de dados
   const { data: costData, isLoading: costLoading, error: costError, refetch: refetchCosts } = useQuery({
@@ -48,7 +51,7 @@ export const useCloudData = () => {
     setSyncInProgress(true);
     
     try {
-      console.log('Iniciando sincronização dos dados dos provedores...');
+      console.log('Iniciando sincronização dos dados dos provedores para período de cobrança Azure:', dateRange);
       
       // Busca dados atualizados dos provedores usando backend service
       const [newCostData, newResourcesData, newBudgetsData] = await Promise.all([
@@ -57,16 +60,17 @@ export const useCloudData = () => {
         cloudService.getAllBudgets()
       ]);
 
-      console.log('Dados obtidos dos provedores:', {
+      console.log('Dados obtidos dos provedores para período Azure:', {
         costData: newCostData,
         resourcesData: newResourcesData,
-        budgetsData: newBudgetsData
+        budgetsData: newBudgetsData,
+        period: `${dateRange.startDate} to ${dateRange.endDate}`
       });
 
       // Salva os dados no banco
       await Promise.all([
         ...Object.entries(newCostData).map(([provider, costs]) => {
-          console.log(`Salvando ${costs.length} registros de custo para ${provider}`);
+          console.log(`Salvando ${costs.length} registros de custo para ${provider} (período Azure)`);
           return supabaseCloudService.saveCostData(provider, costs);
         }),
         ...connectedProviders.map(provider => {
@@ -88,11 +92,11 @@ export const useCloudData = () => {
         refetchBudgets()
       ]);
 
-      console.log('Sincronização concluída com sucesso');
+      console.log('Sincronização concluída com sucesso para período de cobrança Azure');
       
       toast({
         title: "Dados sincronizados",
-        description: "Dados dos provedores de nuvem atualizados com sucesso.",
+        description: `Dados atualizados para período de cobrança Azure: ${dateRange.startDate} a ${dateRange.endDate}`,
       });
 
     } catch (error) {
@@ -126,13 +130,14 @@ export const useCloudData = () => {
   // Log para debug - com mais detalhes
   useEffect(() => {
     if (costData) {
-      console.log('Cost data received from database:', costData);
-      console.log('Total spend calculated:', totalSpend);
+      console.log('Cost data received from database (Azure billing period):', costData);
+      console.log('Total spend calculated for Azure billing period:', totalSpend);
+      console.log('Azure billing period used:', dateRange);
       
       // Log detalhado dos custos por provedor
       Object.entries(costData).forEach(([provider, costs]) => {
         const providerTotal = costs.reduce((sum, cost) => sum + cost.amount, 0);
-        console.log(`${provider}: ${costs.length} registros, total: ${providerTotal}`);
+        console.log(`${provider}: ${costs.length} registros, total: ${providerTotal} (período Azure)`);
       });
     }
     if (resourcesData) {
@@ -143,7 +148,7 @@ export const useCloudData = () => {
       console.log('Budgets data received from database:', budgetsData);
       console.log('Total budget:', totalBudget);
     }
-  }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget]);
+  }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget, dateRange]);
 
   return {
     // Data

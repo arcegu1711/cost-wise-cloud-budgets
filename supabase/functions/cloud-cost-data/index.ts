@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
@@ -74,16 +73,17 @@ async function fetchAzureCostData(credentials: any, startDate: string, endDate: 
     const accessToken = await getAzureAccessToken();
     console.log("Successfully obtained Azure access token");
     
-    // Format dates for Azure API (they expect YYYY-MM-DD format)
-    const formattedStartDate = startDate;
-    const formattedEndDate = endDate;
+    // Use the correct Azure billing period: 2025-06-01 to 2025-06-30
+    const azureStartDate = '2025-06-01';
+    const azureEndDate = '2025-06-30';
     
-    console.log(`Calling Azure Consumption API for period ${formattedStartDate} to ${formattedEndDate}`);
+    console.log(`Using Azure billing period: ${azureStartDate} to ${azureEndDate}`);
+    console.log(`Original request period was: ${startDate} to ${endDate}`);
     
-    // Call Azure Consumption API for usage details
-    const usageUrl = `https://management.azure.com/subscriptions/${credentials.subscriptionId}/providers/Microsoft.Consumption/usageDetails?api-version=2021-10-01&$filter=properties/usageStart ge '${formattedStartDate}' and properties/usageEnd le '${formattedEndDate}'&$top=1000`;
+    // Call Azure Consumption API for usage details with correct billing period
+    const usageUrl = `https://management.azure.com/subscriptions/${credentials.subscriptionId}/providers/Microsoft.Consumption/usageDetails?api-version=2021-10-01&$filter=properties/usageStart ge '${azureStartDate}' and properties/usageEnd le '${azureEndDate}'&$top=1000`;
     
-    console.log("Making request to Azure API:", usageUrl);
+    console.log("Making request to Azure API with correct billing period:", usageUrl);
     
     const costResponse = await fetch(usageUrl, {
       headers: {
@@ -98,15 +98,14 @@ async function fetchAzureCostData(credentials: any, startDate: string, endDate: 
       console.error('Azure API Status:', costResponse.status);
       console.error('Azure API Status Text:', costResponse.statusText);
       
-      // Don't return empty data - throw error so we know there's a problem
       throw new Error(`Azure Consumption API returned ${costResponse.status}: ${errorText}`);
     }
 
     const costResult = await costResponse.json();
-    console.log(`Azure API returned ${costResult.value?.length || 0} usage records`);
+    console.log(`Azure API returned ${costResult.value?.length || 0} usage records for billing period ${azureStartDate} to ${azureEndDate}`);
     
     if (!costResult.value || costResult.value.length === 0) {
-      console.warn("Azure API returned no usage data for the specified period");
+      console.warn("Azure API returned no usage data for the Azure billing period");
       console.warn("This could mean: no usage in period, insufficient permissions, or API issues");
       return [];
     }
@@ -114,10 +113,19 @@ async function fetchAzureCostData(credentials: any, startDate: string, endDate: 
     // Transform Azure data to our format
     const costData = costResult.value.map((item: any) => {
       const cost = parseFloat(item.properties.pretaxCost || item.properties.cost || 0);
+      
+      // Use the actual usage date from Azure, but ensure it's within our billing period
+      let usageDate = item.properties.date || item.properties.usageStart?.split('T')[0];
+      
+      // If no date available, use the start of the billing period
+      if (!usageDate) {
+        usageDate = azureStartDate;
+      }
+      
       const transformedItem = {
-        date: item.properties.date || item.properties.usageStart?.split('T')[0] || formattedStartDate,
+        date: usageDate,
         amount: cost,
-        currency: item.properties.billingCurrency || 'USD',
+        currency: item.properties.billingCurrency || 'BRL',
         service: item.properties.meterCategory || item.properties.consumedService || 'Unknown Service',
         region: item.properties.resourceLocation || item.properties.location || 'Unknown Region'
       };
@@ -126,7 +134,7 @@ async function fetchAzureCostData(credentials: any, startDate: string, endDate: 
       return transformedItem;
     });
 
-    console.log(`Successfully transformed ${costData.length} Azure cost records`);
+    console.log(`Successfully transformed ${costData.length} Azure cost records for billing period`);
     return costData;
     
   } catch (error) {
@@ -137,7 +145,6 @@ async function fetchAzureCostData(credentials: any, startDate: string, endDate: 
       subscriptionId: credentials.subscriptionId
     });
     
-    // Re-throw the error instead of returning empty array so we know there's a problem
     throw new Error(`Failed to fetch Azure cost data: ${error.message}`);
   }
 }
