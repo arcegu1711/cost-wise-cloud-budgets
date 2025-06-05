@@ -13,6 +13,7 @@
   "dependencies": {
     "@azure/arm-consumption": "^9.2.0",
     "@azure/arm-resources": "^6.1.0",
+    "@azure/identity": "^4.10.0",
     "@google-cloud/billing": "^5.0.1",
     "@google-cloud/resource-manager": "^6.1.0",
     "@hookform/resolvers": "^3.9.0",

@@ -34,14 +34,18 @@ export class AzureConnector {
       const costData: CostData[] = [];
       
       for await (const usage of usageDetails) {
-        if (usage.properties && 'cost' in usage.properties) {
-          costData.push({
-            date: usage.properties.date?.toISOString().split('T')[0] || startDate,
-            amount: usage.properties.cost || 0,
-            currency: usage.properties.currency || 'USD',
-            service: usage.properties.meterCategory || 'Unknown',
-            region: usage.properties.resourceLocation || 'Unknown'
-          });
+        // Handle the union type properly
+        if (usage && 'properties' in usage && usage.properties) {
+          const props = usage.properties as any;
+          if ('cost' in props) {
+            costData.push({
+              date: props.date?.toISOString?.()?.split('T')[0] || startDate,
+              amount: props.cost || 0,
+              currency: props.currency || 'USD',
+              service: props.meterCategory || 'Unknown',
+              region: props.resourceLocation || 'Unknown'
+            });
+          }
         }
       }
 
@@ -151,8 +155,9 @@ export class AzureConnector {
 
       const client = new ResourceManagementClient(credential, this.credentials.subscriptionId!);
       
-      // Test by getting subscription info
-      await client.subscriptions.get(this.credentials.subscriptionId!);
+      // Test by getting resource groups instead of subscription
+      const resourceGroups = client.resourceGroups.list();
+      const result = await resourceGroups.next();
       
       console.log('Azure connection successful');
       return true;
