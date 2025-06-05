@@ -58,9 +58,9 @@ export class GCPConnector {
     try {
       console.log('Fetching real GCP resources');
       
-      const { ResourceManagerClient } = await import('@google-cloud/resource-manager');
+      const resourceManager = await import('@google-cloud/resource-manager');
       
-      const resourceManager = new ResourceManagerClient({
+      const client = new resourceManager.v3.ProjectsClient({
         credentials: this.serviceAccountKey,
         projectId: this.projectId,
       });
@@ -68,22 +68,26 @@ export class GCPConnector {
       const resources: ResourceData[] = [];
       
       // Get project information
-      const [project] = await resourceManager.getProject({
-        name: `projects/${this.projectId}`,
-      });
-
-      if (project) {
-        resources.push({
-          id: project.projectId || this.projectId,
-          name: project.displayName || project.projectId || this.projectId,
-          type: 'Project',
-          provider: 'gcp',
-          region: 'global',
-          cost: 0,
-          utilization: 0,
-          status: project.state === 'ACTIVE' ? 'running' : 'stopped',
-          tags: project.labels || {},
+      try {
+        const [project] = await client.getProject({
+          name: `projects/${this.projectId}`,
         });
+
+        if (project) {
+          resources.push({
+            id: project.projectId || this.projectId,
+            name: project.displayName || project.projectId || this.projectId,
+            type: 'Project',
+            provider: 'gcp',
+            region: 'global',
+            cost: 0,
+            utilization: 0,
+            status: project.state === 'ACTIVE' ? 'running' : 'stopped',
+            tags: project.labels || {},
+          });
+        }
+      } catch (projectError) {
+        console.warn('Could not fetch project details:', projectError);
       }
 
       // To get more detailed resources (VMs, storage, etc.), you would need
@@ -129,15 +133,15 @@ export class GCPConnector {
     try {
       console.log('Testing real GCP connection');
       
-      const { ResourceManagerClient } = await import('@google-cloud/resource-manager');
+      const resourceManager = await import('@google-cloud/resource-manager');
       
-      const resourceManager = new ResourceManagerClient({
+      const client = new resourceManager.v3.ProjectsClient({
         credentials: this.serviceAccountKey,
         projectId: this.projectId,
       });
 
       // Test by getting project info
-      await resourceManager.getProject({
+      await client.getProject({
         name: `projects/${this.projectId}`,
       });
       

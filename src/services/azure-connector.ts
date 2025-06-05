@@ -21,7 +21,9 @@ export class AzureConnector {
 
     this.costManagementClient = new CostManagementClient(
       this.credential,
-      credentials.subscriptionId!
+      {
+        subscriptionId: credentials.subscriptionId!
+      }
     );
 
     this.resourceClient = new ResourceManagementClient(
