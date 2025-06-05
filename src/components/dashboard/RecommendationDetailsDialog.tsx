@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -326,7 +327,7 @@ export const RecommendationDetailsDialog = ({ recommendation, isOpen, onClose }:
                           <div className="flex flex-wrap gap-1">
                             {Object.entries(resource.tags).map(([key, value]) => (
                               <Badge key={key} variant="secondary" className="text-xs">
-                                {key}: {value}
+                                {key}: {String(value)}
                               </Badge>
                             ))}
                           </div>
