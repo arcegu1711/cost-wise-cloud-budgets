@@ -1,4 +1,4 @@
-
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCloudData } from "@/hooks/useCloudData";
 import { formatCurrency } from "@/utils/currency";
+import { RecommendationDetailsDialog } from "./RecommendationDetailsDialog";
 
 interface OptimizationRecommendation {
   id: number;
@@ -143,6 +144,9 @@ const generateRecommendationsFromData = (costData: any, resourcesData: any[], co
 };
 
 export const OptimizationRecommendations = () => {
+  const [selectedRecommendation, setSelectedRecommendation] = useState<OptimizationRecommendation | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
   const { 
     costData, 
     resourcesData, 
@@ -156,6 +160,16 @@ export const OptimizationRecommendations = () => {
   const totalResources = recommendations.reduce((sum, rec) => sum + rec.resources, 0);
   const quickWins = recommendations.filter(rec => rec.effort === "Low").length;
   const potentialReduction = totalSavings > 0 ? Math.round((totalSavings / (costData ? Object.values(costData).flat().reduce((sum: number, cost: any) => sum + cost.amount, 0) : 1)) * 100) : 0;
+
+  const handleViewDetails = (recommendation: OptimizationRecommendation) => {
+    setSelectedRecommendation(recommendation);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setSelectedRecommendation(null);
+  };
 
   if (connectedProviders.length === 0) {
     return (
@@ -200,6 +214,60 @@ export const OptimizationRecommendations = () => {
       </div>
     );
   }
+
+  const RecommendationCard = ({ rec }: { rec: OptimizationRecommendation }) => (
+    <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-4 flex-1">
+            <div className="p-2 bg-slate-100 rounded-lg">
+              {getCategoryIcon(rec.category)}
+            </div>
+            
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-2">
+                <h3 className="font-semibold">{rec.title}</h3>
+                <Badge variant="outline">{rec.provider}</Badge>
+              </div>
+              
+              <p className="text-muted-foreground mb-3">{rec.description}</p>
+              
+              <div className="flex items-center space-x-4 text-sm">
+                <div className="flex items-center space-x-1">
+                  <span className="text-muted-foreground">Recursos:</span>
+                  <span className="font-medium">{rec.resources}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Esforço:</span>
+                  {getEffortBadge(rec.effort)}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Impacto:</span>
+                  {getImpactBadge(rec.impact)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-right ml-4">
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(rec.potential_savings)}
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">mensais</p>
+            
+            <Button 
+              size="sm" 
+              className="w-full"
+              onClick={() => handleViewDetails(rec)}
+            >
+              Ver Detalhes
+              <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -277,53 +345,7 @@ export const OptimizationRecommendations = () => {
 
           <TabsContent value="all" className="space-y-4">
             {recommendations.map((rec) => (
-              <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4 flex-1">
-                      <div className="p-2 bg-slate-100 rounded-lg">
-                        {getCategoryIcon(rec.category)}
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold">{rec.title}</h3>
-                          <Badge variant="outline">{rec.provider}</Badge>
-                        </div>
-                        
-                        <p className="text-muted-foreground mb-3">{rec.description}</p>
-                        
-                        <div className="flex items-center space-x-4 text-sm">
-                          <div className="flex items-center space-x-1">
-                            <span className="text-muted-foreground">Recursos:</span>
-                            <span className="font-medium">{rec.resources}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-muted-foreground">Esforço:</span>
-                            {getEffortBadge(rec.effort)}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-muted-foreground">Impacto:</span>
-                            {getImpactBadge(rec.impact)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="text-right ml-4">
-                      <div className="text-2xl font-bold text-green-600">
-                        {formatCurrency(rec.potential_savings)}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">mensais</p>
-                      
-                      <Button size="sm" className="w-full">
-                        Ver Detalhes
-                        <ChevronRight className="h-3 w-3 ml-1" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <RecommendationCard key={rec.id} rec={rec} />
             ))}
           </TabsContent>
 
@@ -332,53 +354,7 @@ export const OptimizationRecommendations = () => {
               {recommendations
                 .filter(rec => rec.impact === "High")
                 .map((rec) => (
-                  <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4 flex-1">
-                          <div className="p-2 bg-slate-100 rounded-lg">
-                            {getCategoryIcon(rec.category)}
-                          </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h3 className="font-semibold">{rec.title}</h3>
-                              <Badge variant="outline">{rec.provider}</Badge>
-                            </div>
-                            
-                            <p className="text-muted-foreground mb-3">{rec.description}</p>
-                            
-                            <div className="flex items-center space-x-4 text-sm">
-                              <div className="flex items-center space-x-1">
-                                <span className="text-muted-foreground">Recursos:</span>
-                                <span className="font-medium">{rec.resources}</span>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-muted-foreground">Esforço:</span>
-                                {getEffortBadge(rec.effort)}
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-muted-foreground">Impacto:</span>
-                                {getImpactBadge(rec.impact)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right ml-4">
-                          <div className="text-2xl font-bold text-green-600">
-                            {formatCurrency(rec.potential_savings)}
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-3">mensais</p>
-                          
-                          <Button size="sm" className="w-full">
-                            Ver Detalhes
-                            <ChevronRight className="h-3 w-3 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <RecommendationCard key={rec.id} rec={rec} />
                 ))}
             </div>
           </TabsContent>
@@ -388,53 +364,7 @@ export const OptimizationRecommendations = () => {
               {recommendations
                 .filter(rec => rec.effort === "Low")
                 .map((rec) => (
-                  <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4 flex-1">
-                          <div className="p-2 bg-slate-100 rounded-lg">
-                            {getCategoryIcon(rec.category)}
-                          </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h3 className="font-semibold">{rec.title}</h3>
-                              <Badge variant="outline">{rec.provider}</Badge>
-                            </div>
-                            
-                            <p className="text-muted-foreground mb-3">{rec.description}</p>
-                            
-                            <div className="flex items-center space-x-4 text-sm">
-                              <div className="flex items-center space-x-1">
-                                <span className="text-muted-foreground">Recursos:</span>
-                                <span className="font-medium">{rec.resources}</span>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-muted-foreground">Esforço:</span>
-                                {getEffortBadge(rec.effort)}
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-muted-foreground">Impacto:</span>
-                                {getImpactBadge(rec.impact)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right ml-4">
-                          <div className="text-2xl font-bold text-green-600">
-                            {formatCurrency(rec.potential_savings)}
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-3">mensais</p>
-                          
-                          <Button size="sm" className="w-full">
-                            Ver Detalhes
-                            <ChevronRight className="h-3 w-3 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <RecommendationCard key={rec.id} rec={rec} />
                 ))}
             </div>
           </TabsContent>
@@ -451,6 +381,13 @@ export const OptimizationRecommendations = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de Detalhes */}
+      <RecommendationDetailsDialog 
+        recommendation={selectedRecommendation}
+        isOpen={isDialogOpen}
+        onClose={handleCloseDialog}
+      />
     </div>
   );
 };
