@@ -9,7 +9,7 @@ import { ResourcesTable } from "@/components/resources/ResourcesTable";
 import { useCloudData } from "@/hooks/useCloudData";
 
 const Resources = () => {
-  const { resourcesData, isLoading, syncCloudData, connectedProviders } = useCloudData();
+  const { resourcesData, isLoading, syncCloudData, connectedProviders, totalResourcesCost } = useCloudData();
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [providerFilter, setProviderFilter] = useState("all");
@@ -51,6 +51,7 @@ const Resources = () => {
             uniqueTypes={resourceTypes.length}
             uniqueRegions={regions.length}
             connectedProviders={connectedProviders.length}
+            totalResourcesCost={totalResourcesCost}
           />
 
           <ResourcesFilters
