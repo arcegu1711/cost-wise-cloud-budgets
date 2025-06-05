@@ -1,6 +1,7 @@
 
 export interface CloudCredentials {
   provider: 'aws' | 'azure' | 'gcp';
+  accountName?: string; // Nome da conta para identificação
   // AWS
   accessKeyId?: string;
   secretAccessKey?: string;

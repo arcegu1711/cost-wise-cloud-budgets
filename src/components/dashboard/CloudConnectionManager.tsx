@@ -291,6 +291,15 @@ export const CloudConnectionManager = () => {
 
             <TabsContent value="aws" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="aws-account-name">Nome da Conta</Label>
+                  <Input
+                    id="aws-account-name"
+                    placeholder="Exemplo: Produção AWS, Desenvolvimento AWS"
+                    value={awsCredentials.accountName || ''}
+                    onChange={(e) => setAwsCredentials({ ...awsCredentials, accountName: e.target.value })}
+                  />
+                </div>
                 <div>
                   <Label htmlFor="aws-access-key">Access Key ID</Label>
                   <Input
@@ -340,6 +349,15 @@ export const CloudConnectionManager = () => {
 
             <TabsContent value="azure" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="azure-account-name">Nome da Conta</Label>
+                  <Input
+                    id="azure-account-name"
+                    placeholder="Exemplo: Produção Azure, Desenvolvimento Azure"
+                    value={azureCredentials.accountName || ''}
+                    onChange={(e) => setAzureCredentials({ ...azureCredentials, accountName: e.target.value })}
+                  />
+                </div>
                 <div>
                   <Label htmlFor="azure-subscription-id">Subscription ID</Label>
                   <Input
@@ -391,6 +409,15 @@ export const CloudConnectionManager = () => {
 
             <TabsContent value="gcp" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="gcp-account-name">Nome da Conta</Label>
+                  <Input
+                    id="gcp-account-name"
+                    placeholder="Exemplo: Produção GCP, Desenvolvimento GCP"
+                    value={gcpCredentials.accountName || ''}
+                    onChange={(e) => setGcpCredentials({ ...gcpCredentials, accountName: e.target.value })}
+                  />
+                </div>
                 <div>
                   <Label htmlFor="gcp-project-id">Project ID</Label>
                   <Input
