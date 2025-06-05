@@ -100,10 +100,9 @@ export const useCloudData = () => {
     }
   };
 
-  // Calculate totals and metrics
-  const totalSpend = Object.values(costData || {})
-    .flat()
-    .reduce((sum, cost) => sum + cost.amount, 0);
+  // Calculate totals and metrics - corrigido para processar dados do banco
+  const totalSpend = costData ? 
+    Object.values(costData).flat().reduce((sum, cost) => sum + cost.amount, 0) : 0;
 
   const totalBudget = (budgetsData || [])
     .reduce((sum, budget) => sum + budget.amount, 0);
@@ -116,6 +115,22 @@ export const useCloudData = () => {
   const totalResources = (resourcesData || []).length;
 
   const connectedProviders = getConnectedProviders();
+
+  // Log para debug
+  useEffect(() => {
+    if (costData) {
+      console.log('Cost data received:', costData);
+      console.log('Total spend calculated:', totalSpend);
+    }
+    if (resourcesData) {
+      console.log('Resources data received:', resourcesData);
+      console.log('Total resources:', totalResources);
+    }
+    if (budgetsData) {
+      console.log('Budgets data received:', budgetsData);
+      console.log('Total budget:', totalBudget);
+    }
+  }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget]);
 
   return {
     // Data
