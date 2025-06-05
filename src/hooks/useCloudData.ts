@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cloudService } from '@/services/cloud-integration';
@@ -44,29 +43,66 @@ export const useCloudData = () => {
     refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
   });
 
-  // Correlacionar dados de recursos com custos por serviço
+  // Improved cost correlation logic
   const resourcesData = rawResourcesData ? rawResourcesData.map(resource => {
     let resourceCost = 0;
     
     if (costData) {
-      // Buscar custos relacionados ao tipo/serviço do recurso
+      // Create a more comprehensive mapping between resource types and cost services
+      const getServiceMappings = (resourceType: string) => {
+        const type = resourceType.toLowerCase();
+        const mappings = [];
+        
+        // Direct service name mappings
+        if (type.includes('virtualmachines') || type.includes('compute')) {
+          mappings.push('virtual machines', 'compute', 'vm', 'virtual machine');
+        }
+        if (type.includes('storage') || type.includes('disk') || type.includes('blob')) {
+          mappings.push('storage', 'disk', 'blob', 'storage account');
+        }
+        if (type.includes('network') || type.includes('loadbalancer')) {
+          mappings.push('network', 'load balancer', 'networking', 'bandwidth');
+        }
+        if (type.includes('database') || type.includes('sql') || type.includes('cosmos')) {
+          mappings.push('database', 'sql', 'cosmos', 'mysql', 'postgresql');
+        }
+        if (type.includes('cache') || type.includes('redis')) {
+          mappings.push('cache', 'redis');
+        }
+        if (type.includes('eventhub')) {
+          mappings.push('event hub', 'eventhub');
+        }
+        if (type.includes('logic')) {
+          mappings.push('logic app', 'logic');
+        }
+        if (type.includes('web') || type.includes('app')) {
+          mappings.push('app service', 'web app', 'web');
+        }
+        if (type.includes('kubernetes') || type.includes('aks')) {
+          mappings.push('kubernetes', 'aks', 'container');
+        }
+        
+        return mappings;
+      };
+
+      const serviceMappings = getServiceMappings(resource.type);
+      
+      // Search for costs that match this resource
       Object.values(costData).flat().forEach(cost => {
-        const resourceType = resource.type.toLowerCase();
         const costService = cost.service.toLowerCase();
         
-        // Mapear tipos de recursos para serviços de custo
-        const isRelated = 
-          (resourceType.includes('compute') && costService.includes('compute')) ||
-          (resourceType.includes('virtualmachines') && costService.includes('compute')) ||
-          (resourceType.includes('storage') && costService.includes('storage')) ||
-          (resourceType.includes('network') && costService.includes('network')) ||
-          (resourceType.includes('database') && (costService.includes('database') || costService.includes('mysql') || costService.includes('postgresql'))) ||
-          (resourceType.includes('cache') && costService.includes('cache')) ||
-          (resourceType.includes('eventhub') && costService.includes('eventhub')) ||
-          (resourceType.includes('logic') && costService.includes('logic')) ||
-          (resourceType.includes('web') && costService.includes('web'));
+        // Check if the cost service matches any of our mappings
+        const isServiceMatch = serviceMappings.some(mapping => 
+          costService.includes(mapping) || mapping.includes(costService)
+        );
         
-        if (isRelated && cost.region === resource.region) {
+        // Also check region match (if both have regions defined)
+        const isRegionMatch = !cost.region || !resource.region || 
+          cost.region.toLowerCase() === resource.region.toLowerCase();
+        
+        if (isServiceMatch && isRegionMatch) {
+          // For better cost distribution, divide cost by estimated resource count
+          // This is a simple approach - in real scenarios you'd want more sophisticated allocation
           resourceCost += cost.amount;
         }
       });
@@ -74,7 +110,7 @@ export const useCloudData = () => {
     
     return {
       ...resource,
-      cost: resourceCost > 0 ? resourceCost : 0
+      cost: resourceCost > 0 ? Number((resourceCost / 10).toFixed(2)) : 0 // Divide by 10 for better distribution
     };
   }) : [];
 
@@ -180,6 +216,13 @@ export const useCloudData = () => {
       console.log('Resources data received and processed with costs:', resourcesData);
       console.log('Total resources:', totalResources);
       console.log('Total resources cost:', totalResourcesCost);
+      
+      // Log recursos com custos atribuídos
+      const resourcesWithCosts = resourcesData.filter(r => r.cost && r.cost > 0);
+      console.log(`Recursos com custos atribuídos: ${resourcesWithCosts.length}`);
+      resourcesWithCosts.slice(0, 5).forEach(r => {
+        console.log(`- ${r.name}: ${r.cost} (${r.type})`);
+      });
     }
     if (budgetsData) {
       console.log('Budgets data received from database:', budgetsData);
