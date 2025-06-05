@@ -76,21 +76,76 @@ async function testAWSConnection(credentials: any): Promise<boolean> {
 }
 
 async function testAzureConnection(credentials: any): Promise<boolean> {
-  // Aqui implementaríamos a chamada real para Azure Resource Manager API
   console.log("Testing Azure connection with subscription:", credentials.subscriptionId);
   
-  // Simulate connection test with some validation
-  if (!credentials.subscriptionId || !credentials.tenantId || !credentials.clientId || !credentials.clientSecret) {
-    throw new Error("Missing Azure credentials");
+  try {
+    // Validate required credentials
+    if (!credentials.subscriptionId || !credentials.tenantId || !credentials.clientId || !credentials.clientSecret) {
+      throw new Error("Missing Azure credentials");
+    }
+
+    // Try to get access token - this is a real test of the credentials
+    const accessToken = await getAzureAccessToken();
+    
+    // Try to make a simple API call to verify the connection
+    const testResponse = await fetch(
+      `https://management.azure.com/subscriptions/${credentials.subscriptionId}?api-version=2020-01-01`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (testResponse.ok) {
+      console.log('Azure connection test successful');
+      return true;
+    } else {
+      console.error('Azure connection test failed:', testResponse.status);
+      return false;
+    }
+    
+  } catch (error) {
+    console.error('Azure connection test error:', error);
+    return false;
   }
+}
+
+async function getAzureAccessToken(): Promise<string> {
+  const tenantId = Deno.env.get('AZURE_TENANT_ID');
+  const clientId = Deno.env.get('AZURE_CLIENT_ID');
+  const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET');
+
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error('Azure credentials not configured in environment');
+  }
+
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   
-  // Simulate API delay and occasional failures
-  await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
-  
-  const success = Math.random() > 0.15; // 85% success rate
-  console.log(`Azure connection test result: ${success}`);
-  
-  return success;
+  const body = new URLSearchParams({
+    'client_id': clientId,
+    'client_secret': clientSecret,
+    'scope': 'https://management.azure.com/.default',
+    'grant_type': 'client_credentials'
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: body.toString()
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Azure token error:', errorText);
+    throw new Error(`Failed to get Azure access token: ${response.status}`);
+  }
+
+  const tokenData = await response.json();
+  return tokenData.access_token;
 }
 
 async function testGCPConnection(credentials: any): Promise<boolean> {

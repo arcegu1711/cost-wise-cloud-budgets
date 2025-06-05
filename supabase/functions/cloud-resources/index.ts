@@ -95,40 +95,87 @@ async function fetchAWSResources(credentials: any) {
 }
 
 async function fetchAzureResources(credentials: any) {
-  // Aqui implementaríamos a chamada real para Azure Resource Management API
   console.log("Fetching Azure resources with subscription:", credentials.subscriptionId);
   
-  const vmSizes = ['Standard_B1s', 'Standard_B2s', 'Standard_D2s_v3', 'Standard_F4s_v2'];
-  const regions = ['East US', 'West US 2', 'North Europe'];
-  const statuses = ['running', 'stopped'];
-  
-  const resources = [];
-  
-  // Generate 10-20 Virtual Machines
-  const vmCount = 10 + Math.floor(Math.random() * 10);
-  for (let i = 0; i < vmCount; i++) {
-    const vmSize = vmSizes[Math.floor(Math.random() * vmSizes.length)];
-    const region = regions[Math.floor(Math.random() * regions.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const utilization = status === 'running' ? Math.random() * 85 + 5 : 0;
+  try {
+    // Get Azure access token
+    const accessToken = await getAzureAccessToken();
     
-    resources.push({
-      id: `/subscriptions/${credentials.subscriptionId}/resourceGroups/rg-${i}/providers/Microsoft.Compute/virtualMachines/vm-${i}`,
-      name: `vm-web-${i + 1}`,
-      type: `Virtual Machine ${vmSize}`,
-      provider: 'azure',
-      region: region,
-      cost: Math.round((Math.random() * 180 + 40) * 100) / 100,
-      utilization: Math.round(utilization),
-      status: status,
-      tags: {
-        Environment: Math.random() > 0.6 ? 'Production' : 'Development',
-        CostCenter: `CC-${Math.floor(Math.random() * 3) + 1}`
+    // Call Azure Resource Manager API for Virtual Machines
+    const resourcesResponse = await fetch(
+      `https://management.azure.com/subscriptions/${credentials.subscriptionId}/providers/Microsoft.Compute/virtualMachines?api-version=2023-03-01`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
+
+    if (!resourcesResponse.ok) {
+      console.error('Azure API Error:', await resourcesResponse.text());
+      throw new Error(`Azure API returned ${resourcesResponse.status}`);
+    }
+
+    const resourcesResult = await resourcesResponse.json();
+    console.log(`Retrieved ${resourcesResult.value?.length || 0} resources from Azure`);
+    
+    // Transform Azure data to our format
+    const resources = (resourcesResult.value || []).map((vm: any) => ({
+      id: vm.id,
+      name: vm.name,
+      type: `Virtual Machine ${vm.properties?.hardwareProfile?.vmSize || 'Unknown'}`,
+      provider: 'azure',
+      region: vm.location,
+      cost: Math.round((Math.random() * 180 + 40) * 100) / 100, // We'd need Azure Cost Management API for real costs
+      utilization: Math.round(Math.random() * 85 + 5), // We'd need Azure Monitor for real utilization
+      status: vm.properties?.instanceView?.statuses?.[1]?.displayStatus || 'unknown',
+      tags: vm.tags || {}
+    }));
+
+    return resources;
+    
+  } catch (error) {
+    console.error('Error fetching Azure resources:', error);
+    // Return empty array instead of throwing to avoid breaking the whole flow
+    return [];
   }
+}
+
+async function getAzureAccessToken(): Promise<string> {
+  const tenantId = Deno.env.get('AZURE_TENANT_ID');
+  const clientId = Deno.env.get('AZURE_CLIENT_ID');
+  const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET');
+
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error('Azure credentials not configured');
+  }
+
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   
-  return resources;
+  const body = new URLSearchParams({
+    'client_id': clientId,
+    'client_secret': clientSecret,
+    'scope': 'https://management.azure.com/.default',
+    'grant_type': 'client_credentials'
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: body.toString()
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Azure token error:', errorText);
+    throw new Error(`Failed to get Azure access token: ${response.status}`);
+  }
+
+  const tokenData = await response.json();
+  return tokenData.access_token;
 }
 
 async function fetchGCPResources(credentials: any) {
