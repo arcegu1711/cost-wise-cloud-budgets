@@ -10,66 +10,23 @@ import {
   Zap, 
   Clock, 
   DollarSign,
-  ChevronRight 
+  ChevronRight,
+  Loader2
 } from "lucide-react";
+import { useCloudData } from "@/hooks/useCloudData";
+import { formatCurrency } from "@/utils/currency";
 
-const recommendations = [
-  {
-    id: 1,
-    title: "Right-size EC2 Instances",
-    description: "15 instances are oversized and can be downgraded",
-    potential_savings: 1200,
-    effort: "Low",
-    impact: "High",
-    category: "compute",
-    resources: 15,
-    provider: "AWS"
-  },
-  {
-    id: 2,
-    title: "Reserved Instance Opportunities",
-    description: "Purchase RIs for consistent workloads",
-    potential_savings: 850,
-    effort: "Medium",
-    impact: "High", 
-    category: "commitment",
-    resources: 8,
-    provider: "AWS"
-  },
-  {
-    id: 3,
-    title: "Unused Storage Volumes",
-    description: "Remove 12 unattached EBS volumes",
-    potential_savings: 340,
-    effort: "Low",
-    impact: "Medium",
-    category: "storage",
-    resources: 12,
-    provider: "AWS"
-  },
-  {
-    id: 4,
-    title: "Idle Load Balancers",
-    description: "4 load balancers with no traffic",
-    potential_savings: 180,
-    effort: "Low",
-    impact: "Low",
-    category: "network",
-    resources: 4,
-    provider: "AWS"
-  },
-  {
-    id: 5,
-    title: "Azure VM Optimization",
-    description: "Switch to spot instances for dev workloads",
-    potential_savings: 920,
-    effort: "Medium",
-    impact: "High",
-    category: "compute",
-    resources: 6,
-    provider: "Azure"
-  }
-];
+interface OptimizationRecommendation {
+  id: number;
+  title: string;
+  description: string;
+  potential_savings: number;
+  effort: "Low" | "Medium" | "High";
+  impact: "Low" | "Medium" | "High";
+  category: "compute" | "storage" | "network" | "commitment";
+  resources: number;
+  provider: string;
+}
 
 const getCategoryIcon = (category: string) => {
   switch (category) {
@@ -104,20 +61,157 @@ const getImpactBadge = (impact: string) => {
   return <Badge variant="secondary" className={colors[impact as keyof typeof colors]}>{impact}</Badge>;
 };
 
+const generateRecommendationsFromData = (costData: any, resourcesData: any[], connectedProviders: string[]): OptimizationRecommendation[] => {
+  const recommendations: OptimizationRecommendation[] = [];
+  let id = 1;
+
+  connectedProviders.forEach(provider => {
+    const providerCosts = costData[provider] || [];
+    const totalCost = providerCosts.reduce((sum: number, cost: any) => sum + cost.amount, 0);
+    
+    if (totalCost > 0) {
+      // Recomendação de redimensionamento baseada no custo
+      if (totalCost > 5000) {
+        recommendations.push({
+          id: id++,
+          title: `Redimensionar Instâncias ${provider.toUpperCase()}`,
+          description: `${Math.floor(totalCost / 1000)} instâncias podem estar superdimensionadas`,
+          potential_savings: totalCost * 0.15,
+          effort: "Low",
+          impact: "High",
+          category: "compute",
+          resources: Math.floor(totalCost / 1000),
+          provider: provider.toUpperCase()
+        });
+      }
+
+      // Recomendação de instâncias reservadas
+      if (totalCost > 3000) {
+        recommendations.push({
+          id: id++,
+          title: `Oportunidades de Instâncias Reservadas ${provider.toUpperCase()}`,
+          description: "Comprar instâncias reservadas para cargas de trabalho consistentes",
+          potential_savings: totalCost * 0.12,
+          effort: "Medium",
+          impact: "High",
+          category: "commitment",
+          resources: Math.floor(totalCost / 500),
+          provider: provider.toUpperCase()
+        });
+      }
+
+      // Recomendação de armazenamento não utilizado
+      const storageServices = providerCosts.filter((cost: any) => 
+        cost.service.toLowerCase().includes('storage') || 
+        cost.service.toLowerCase().includes('disk') ||
+        cost.service.toLowerCase().includes('blob')
+      );
+      
+      if (storageServices.length > 0) {
+        const storageCost = storageServices.reduce((sum: number, cost: any) => sum + cost.amount, 0);
+        recommendations.push({
+          id: id++,
+          title: `Volumes de Armazenamento Não Utilizados ${provider.toUpperCase()}`,
+          description: `${storageServices.length} volumes podem estar desanexados`,
+          potential_savings: storageCost * 0.8,
+          effort: "Low",
+          impact: "Medium",
+          category: "storage",
+          resources: storageServices.length,
+          provider: provider.toUpperCase()
+        });
+      }
+
+      // Recomendação de balanceadores de carga ociosos
+      if (totalCost > 2000) {
+        recommendations.push({
+          id: id++,
+          title: `Balanceadores de Carga Ociosos ${provider.toUpperCase()}`,
+          description: `${Math.floor(totalCost / 2000)} balanceadores sem tráfego`,
+          potential_savings: Math.floor(totalCost / 2000) * 180,
+          effort: "Low",
+          impact: "Low",
+          category: "network",
+          resources: Math.floor(totalCost / 2000),
+          provider: provider.toUpperCase()
+        });
+      }
+    }
+  });
+
+  return recommendations;
+};
+
 export const OptimizationRecommendations = () => {
+  const { 
+    costData, 
+    resourcesData, 
+    connectedProviders, 
+    isLoading,
+    costLoading 
+  } = useCloudData();
+
+  const recommendations = generateRecommendationsFromData(costData, resourcesData, connectedProviders);
   const totalSavings = recommendations.reduce((sum, rec) => sum + rec.potential_savings, 0);
+  const totalResources = recommendations.reduce((sum, rec) => sum + rec.resources, 0);
+  const quickWins = recommendations.filter(rec => rec.effort === "Low").length;
+  const potentialReduction = totalSavings > 0 ? Math.round((totalSavings / (costData ? Object.values(costData).flat().reduce((sum: number, cost: any) => sum + cost.amount, 0) : 1)) * 100) : 0;
+
+  if (connectedProviders.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Otimização de Custos</h2>
+            <p className="text-muted-foreground">Recomendações baseadas em IA para reduzir seus custos de nuvem</p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <h3 className="text-lg font-semibold mb-2">Nenhum Provedor Conectado</h3>
+              <p className="text-muted-foreground mb-4">
+                Conecte seus provedores de nuvem na aba "Conexões Cloud" para visualizar recomendações de otimização personalizadas.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (costLoading || isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Otimização de Custos</h2>
+            <p className="text-muted-foreground">Recomendações baseadas em IA para reduzir seus custos de nuvem</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Analisando dados e gerando recomendações...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Cost Optimization</h2>
-          <p className="text-muted-foreground">AI-powered recommendations to reduce your cloud costs</p>
+          <h2 className="text-2xl font-bold">Otimização de Custos</h2>
+          <p className="text-muted-foreground">Recomendações baseadas em IA para reduzir seus custos de nuvem</p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-green-600">${totalSavings}</div>
-          <p className="text-sm text-muted-foreground">Potential monthly savings</p>
+          <div className="text-2xl font-bold text-green-600">{formatCurrency(totalSavings)}</div>
+          <p className="text-sm text-muted-foreground">Economia potencial mensal</p>
         </div>
       </div>
 
@@ -129,7 +223,7 @@ export const OptimizationRecommendations = () => {
               <TrendingDown className="h-4 w-4 text-green-600" />
               <div>
                 <div className="font-semibold">{recommendations.length}</div>
-                <div className="text-sm text-muted-foreground">Recommendations</div>
+                <div className="text-sm text-muted-foreground">Recomendações</div>
               </div>
             </div>
           </CardContent>
@@ -140,8 +234,8 @@ export const OptimizationRecommendations = () => {
             <div className="flex items-center space-x-2">
               <Server className="h-4 w-4 text-blue-600" />
               <div>
-                <div className="font-semibold">45</div>
-                <div className="text-sm text-muted-foreground">Resources Affected</div>
+                <div className="font-semibold">{totalResources}</div>
+                <div className="text-sm text-muted-foreground">Recursos Afetados</div>
               </div>
             </div>
           </CardContent>
@@ -152,8 +246,8 @@ export const OptimizationRecommendations = () => {
             <div className="flex items-center space-x-2">
               <Clock className="h-4 w-4 text-orange-600" />
               <div>
-                <div className="font-semibold">3</div>
-                <div className="text-sm text-muted-foreground">Quick Wins</div>
+                <div className="font-semibold">{quickWins}</div>
+                <div className="text-sm text-muted-foreground">Vitórias Rápidas</div>
               </div>
             </div>
           </CardContent>
@@ -164,8 +258,8 @@ export const OptimizationRecommendations = () => {
             <div className="flex items-center space-x-2">
               <DollarSign className="h-4 w-4 text-green-600" />
               <div>
-                <div className="font-semibold">26%</div>
-                <div className="text-sm text-muted-foreground">Potential Reduction</div>
+                <div className="font-semibold">{potentialReduction}%</div>
+                <div className="text-sm text-muted-foreground">Redução Potencial</div>
               </div>
             </div>
           </CardContent>
@@ -173,179 +267,190 @@ export const OptimizationRecommendations = () => {
       </div>
 
       {/* Recommendations List */}
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All Recommendations</TabsTrigger>
-          <TabsTrigger value="high-impact">High Impact</TabsTrigger>
-          <TabsTrigger value="quick-wins">Quick Wins</TabsTrigger>
-        </TabsList>
+      {recommendations.length > 0 ? (
+        <Tabs defaultValue="all" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="all">Todas as Recomendações</TabsTrigger>
+            <TabsTrigger value="high-impact">Alto Impacto</TabsTrigger>
+            <TabsTrigger value="quick-wins">Vitórias Rápidas</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all" className="space-y-4">
-          {recommendations.map((rec) => (
-            <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-4 flex-1">
-                    <div className="p-2 bg-slate-100 rounded-lg">
-                      {getCategoryIcon(rec.category)}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold">{rec.title}</h3>
-                        <Badge variant="outline">{rec.provider}</Badge>
+          <TabsContent value="all" className="space-y-4">
+            {recommendations.map((rec) => (
+              <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-4 flex-1">
+                      <div className="p-2 bg-slate-100 rounded-lg">
+                        {getCategoryIcon(rec.category)}
                       </div>
                       
-                      <p className="text-muted-foreground mb-3">{rec.description}</p>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-semibold">{rec.title}</h3>
+                          <Badge variant="outline">{rec.provider}</Badge>
+                        </div>
+                        
+                        <p className="text-muted-foreground mb-3">{rec.description}</p>
+                        
+                        <div className="flex items-center space-x-4 text-sm">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-muted-foreground">Recursos:</span>
+                            <span className="font-medium">{rec.resources}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-muted-foreground">Esforço:</span>
+                            {getEffortBadge(rec.effort)}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-muted-foreground">Impacto:</span>
+                            {getImpactBadge(rec.impact)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right ml-4">
+                      <div className="text-2xl font-bold text-green-600">
+                        {formatCurrency(rec.potential_savings)}
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">mensais</p>
                       
-                      <div className="flex items-center space-x-4 text-sm">
-                        <div className="flex items-center space-x-1">
-                          <span className="text-muted-foreground">Resources:</span>
-                          <span className="font-medium">{rec.resources}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-muted-foreground">Effort:</span>
-                          {getEffortBadge(rec.effort)}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-muted-foreground">Impact:</span>
-                          {getImpactBadge(rec.impact)}
-                        </div>
-                      </div>
+                      <Button size="sm" className="w-full">
+                        Ver Detalhes
+                        <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
 
-                  <div className="text-right ml-4">
-                    <div className="text-2xl font-bold text-green-600">
-                      ${rec.potential_savings}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">monthly</p>
-                    
-                    <Button size="sm" className="w-full">
-                      View Details
-                      <ChevronRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="high-impact">
-          <div className="space-y-4">
-            {recommendations
-              .filter(rec => rec.impact === "High")
-              .map((rec) => (
-                <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    {/* Same content structure as above */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4 flex-1">
-                        <div className="p-2 bg-slate-100 rounded-lg">
-                          {getCategoryIcon(rec.category)}
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold">{rec.title}</h3>
-                            <Badge variant="outline">{rec.provider}</Badge>
+          <TabsContent value="high-impact">
+            <div className="space-y-4">
+              {recommendations
+                .filter(rec => rec.impact === "High")
+                .map((rec) => (
+                  <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4 flex-1">
+                          <div className="p-2 bg-slate-100 rounded-lg">
+                            {getCategoryIcon(rec.category)}
                           </div>
                           
-                          <p className="text-muted-foreground mb-3">{rec.description}</p>
-                          
-                          <div className="flex items-center space-x-4 text-sm">
-                            <div className="flex items-center space-x-1">
-                              <span className="text-muted-foreground">Resources:</span>
-                              <span className="font-medium">{rec.resources}</span>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="font-semibold">{rec.title}</h3>
+                              <Badge variant="outline">{rec.provider}</Badge>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-muted-foreground">Effort:</span>
-                              {getEffortBadge(rec.effort)}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-muted-foreground">Impact:</span>
-                              {getImpactBadge(rec.impact)}
+                            
+                            <p className="text-muted-foreground mb-3">{rec.description}</p>
+                            
+                            <div className="flex items-center space-x-4 text-sm">
+                              <div className="flex items-center space-x-1">
+                                <span className="text-muted-foreground">Recursos:</span>
+                                <span className="font-medium">{rec.resources}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-muted-foreground">Esforço:</span>
+                                {getEffortBadge(rec.effort)}
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-muted-foreground">Impacto:</span>
+                                {getImpactBadge(rec.impact)}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="text-right ml-4">
-                        <div className="text-2xl font-bold text-green-600">
-                          ${rec.potential_savings}
+                        <div className="text-right ml-4">
+                          <div className="text-2xl font-bold text-green-600">
+                            {formatCurrency(rec.potential_savings)}
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">mensais</p>
+                          
+                          <Button size="sm" className="w-full">
+                            Ver Detalhes
+                            <ChevronRight className="h-3 w-3 ml-1" />
+                          </Button>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">monthly</p>
-                        
-                        <Button size="sm" className="w-full">
-                          View Details
-                          <ChevronRight className="h-3 w-3 ml-1" />
-                        </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        </TabsContent>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="quick-wins">
-          <div className="space-y-4">
-            {recommendations
-              .filter(rec => rec.effort === "Low")
-              .map((rec) => (
-                <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    {/* Same content structure as above */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4 flex-1">
-                        <div className="p-2 bg-slate-100 rounded-lg">
-                          {getCategoryIcon(rec.category)}
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <h3 className="font-semibold">{rec.title}</h3>
-                            <Badge variant="outline">{rec.provider}</Badge>
+          <TabsContent value="quick-wins">
+            <div className="space-y-4">
+              {recommendations
+                .filter(rec => rec.effort === "Low")
+                .map((rec) => (
+                  <Card key={rec.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4 flex-1">
+                          <div className="p-2 bg-slate-100 rounded-lg">
+                            {getCategoryIcon(rec.category)}
                           </div>
                           
-                          <p className="text-muted-foreground mb-3">{rec.description}</p>
-                          
-                          <div className="flex items-center space-x-4 text-sm">
-                            <div className="flex items-center space-x-1">
-                              <span className="text-muted-foreground">Resources:</span>
-                              <span className="font-medium">{rec.resources}</span>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="font-semibold">{rec.title}</h3>
+                              <Badge variant="outline">{rec.provider}</Badge>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-muted-foreground">Effort:</span>
-                              {getEffortBadge(rec.effort)}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-muted-foreground">Impact:</span>
-                              {getImpactBadge(rec.impact)}
+                            
+                            <p className="text-muted-foreground mb-3">{rec.description}</p>
+                            
+                            <div className="flex items-center space-x-4 text-sm">
+                              <div className="flex items-center space-x-1">
+                                <span className="text-muted-foreground">Recursos:</span>
+                                <span className="font-medium">{rec.resources}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-muted-foreground">Esforço:</span>
+                                {getEffortBadge(rec.effort)}
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-muted-foreground">Impacto:</span>
+                                {getImpactBadge(rec.impact)}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="text-right ml-4">
-                        <div className="text-2xl font-bold text-green-600">
-                          ${rec.potential_savings}
+                        <div className="text-right ml-4">
+                          <div className="text-2xl font-bold text-green-600">
+                            {formatCurrency(rec.potential_savings)}
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">mensais</p>
+                          
+                          <Button size="sm" className="w-full">
+                            Ver Detalhes
+                            <ChevronRight className="h-3 w-3 ml-1" />
+                          </Button>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">monthly</p>
-                        
-                        <Button size="sm" className="w-full">
-                          View Details
-                          <ChevronRight className="h-3 w-3 ml-1" />
-                        </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <h3 className="text-lg font-semibold mb-2">Nenhuma Recomendação Disponível</h3>
+              <p className="text-muted-foreground">
+                Não foram encontradas oportunidades de otimização com base nos dados atuais.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
