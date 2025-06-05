@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cloudService } from '@/services/cloud-integration';
@@ -43,43 +44,52 @@ export const useCloudData = () => {
     refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
   });
 
-  // Improved cost correlation logic
+  // Enhanced cost correlation logic with multiple strategies
   const resourcesData = rawResourcesData ? rawResourcesData.map(resource => {
     let resourceCost = 0;
     
     if (costData) {
-      // Create a more comprehensive mapping between resource types and cost services
+      // Get all cost entries for this provider
+      const providerCosts = costData[resource.provider] || [];
+      
+      // Strategy 1: Direct service name matching
       const getServiceMappings = (resourceType: string) => {
         const type = resourceType.toLowerCase();
         const mappings = [];
         
-        // Direct service name mappings
-        if (type.includes('virtualmachines') || type.includes('compute')) {
-          mappings.push('virtual machines', 'compute', 'vm', 'virtual machine');
+        // More comprehensive mappings based on Azure resource types
+        if (type.includes('microsoft.compute') || type.includes('virtualmachines') || type.includes('compute')) {
+          mappings.push('microsoft.compute', 'compute', 'virtual machines', 'vm');
         }
-        if (type.includes('storage') || type.includes('disk') || type.includes('blob')) {
-          mappings.push('storage', 'disk', 'blob', 'storage account');
+        if (type.includes('microsoft.storage') || type.includes('storage') || type.includes('disk') || type.includes('blob')) {
+          mappings.push('microsoft.storage', 'storage', 'disk', 'blob');
         }
-        if (type.includes('network') || type.includes('loadbalancer')) {
-          mappings.push('network', 'load balancer', 'networking', 'bandwidth');
+        if (type.includes('microsoft.network') || type.includes('network') || type.includes('loadbalancer')) {
+          mappings.push('microsoft.network', 'network', 'load balancer', 'networking');
         }
-        if (type.includes('database') || type.includes('sql') || type.includes('cosmos')) {
-          mappings.push('database', 'sql', 'cosmos', 'mysql', 'postgresql');
+        if (type.includes('microsoft.sql') || type.includes('microsoft.dbfor') || type.includes('database') || type.includes('sql')) {
+          mappings.push('microsoft.dbformysql', 'microsoft.dbforpostgresql', 'microsoft.sql', 'database', 'sql', 'mysql', 'postgresql');
         }
-        if (type.includes('cache') || type.includes('redis')) {
-          mappings.push('cache', 'redis');
+        if (type.includes('microsoft.cache') || type.includes('cache') || type.includes('redis')) {
+          mappings.push('microsoft.cache', 'cache', 'redis');
         }
-        if (type.includes('eventhub')) {
-          mappings.push('event hub', 'eventhub');
+        if (type.includes('microsoft.eventhub') || type.includes('eventhub')) {
+          mappings.push('microsoft.eventhub', 'event hub', 'eventhub');
         }
-        if (type.includes('logic')) {
-          mappings.push('logic app', 'logic');
+        if (type.includes('microsoft.logic') || type.includes('logic')) {
+          mappings.push('microsoft.logic', 'logic app', 'logic');
         }
-        if (type.includes('web') || type.includes('app')) {
-          mappings.push('app service', 'web app', 'web');
+        if (type.includes('microsoft.web') || type.includes('web') || type.includes('app')) {
+          mappings.push('microsoft.web', 'app service', 'web app', 'web');
         }
-        if (type.includes('kubernetes') || type.includes('aks')) {
+        if (type.includes('microsoft.containerservice') || type.includes('kubernetes') || type.includes('aks')) {
           mappings.push('kubernetes', 'aks', 'container');
+        }
+        if (type.includes('microsoft.security')) {
+          mappings.push('microsoft.security', 'security');
+        }
+        if (type.includes('microsoft.operationalinsights')) {
+          mappings.push('microsoft.operationalinsights', 'operational insights', 'log analytics');
         }
         
         return mappings;
@@ -87,30 +97,57 @@ export const useCloudData = () => {
 
       const serviceMappings = getServiceMappings(resource.type);
       
-      // Search for costs that match this resource
-      Object.values(costData).flat().forEach(cost => {
+      // Find matching costs
+      const matchingCosts = providerCosts.filter(cost => {
         const costService = cost.service.toLowerCase();
         
-        // Check if the cost service matches any of our mappings
+        // Check for direct service match (case insensitive)
         const isServiceMatch = serviceMappings.some(mapping => 
-          costService.includes(mapping) || mapping.includes(costService)
+          costService.includes(mapping.toLowerCase()) || mapping.toLowerCase().includes(costService)
         );
         
-        // Also check region match (if both have regions defined)
+        // Region matching (more flexible - just check if regions contain each other)
         const isRegionMatch = !cost.region || !resource.region || 
-          cost.region.toLowerCase() === resource.region.toLowerCase();
+          cost.region.toLowerCase().includes(resource.region.toLowerCase()) ||
+          resource.region.toLowerCase().includes(cost.region.toLowerCase()) ||
+          cost.region.toLowerCase() === 'all regions'; // Azure global services
         
-        if (isServiceMatch && isRegionMatch) {
-          // For better cost distribution, divide cost by estimated resource count
-          // This is a simple approach - in real scenarios you'd want more sophisticated allocation
-          resourceCost += cost.amount;
-        }
+        return isServiceMatch && isRegionMatch;
       });
+
+      // Sum up all matching costs
+      resourceCost = matchingCosts.reduce((sum, cost) => sum + cost.amount, 0);
+      
+      // If no direct match found, try fallback strategies
+      if (resourceCost === 0 && providerCosts.length > 0) {
+        // Strategy 2: Try partial matching on resource name or type
+        const partialMatches = providerCosts.filter(cost => {
+          const costService = cost.service.toLowerCase();
+          const resourceName = resource.name.toLowerCase();
+          const resourceType = resource.type.toLowerCase();
+          
+          // Check if cost service appears in resource type or name
+          return resourceType.includes(costService.replace('microsoft.', '')) ||
+                 resourceName.includes(costService.replace('microsoft.', '')) ||
+                 costService.includes(resourceType.replace('microsoft.', ''));
+        });
+        
+        if (partialMatches.length > 0) {
+          resourceCost = partialMatches.reduce((sum, cost) => sum + cost.amount, 0) / partialMatches.length;
+        }
+      }
+      
+      // Strategy 3: For unmatched resources, assign a small portion of total unassigned costs
+      if (resourceCost === 0 && providerCosts.length > 0) {
+        const totalCosts = providerCosts.reduce((sum, cost) => sum + cost.amount, 0);
+        const averageCost = totalCosts / Math.max(rawResourcesData.length, 10); // Distribute among resources
+        resourceCost = averageCost * 0.1; // Assign 10% of average as estimate
+      }
     }
     
     return {
       ...resource,
-      cost: resourceCost > 0 ? Number((resourceCost / 10).toFixed(2)) : 0 // Divide by 10 for better distribution
+      cost: resourceCost > 0 ? Number(resourceCost.toFixed(2)) : 0
     };
   }) : [];
 
@@ -199,36 +236,26 @@ export const useCloudData = () => {
 
   const connectedProviders = getConnectedProviders();
 
-  // Log para debug - com mais detalhes
+  // Enhanced logging for debugging cost correlation
   useEffect(() => {
-    if (costData) {
-      console.log('Cost data received from database (Azure billing period):', costData);
-      console.log('Total spend calculated for Azure billing period:', totalSpend);
-      console.log('Azure billing period used:', dateRange);
+    if (costData && resourcesData.length > 0) {
+      console.log('=== COST CORRELATION DEBUG ===');
+      console.log('Available cost data by provider:', Object.keys(costData));
       
-      // Log detalhado dos custos por provedor
       Object.entries(costData).forEach(([provider, costs]) => {
-        const providerTotal = costs.reduce((sum, cost) => sum + cost.amount, 0);
-        console.log(`${provider}: ${costs.length} registros, total: ${providerTotal} (período Azure)`);
+        console.log(`${provider} costs:`, costs.map(c => `${c.service} (${c.region}): ${c.amount}`));
       });
-    }
-    if (resourcesData) {
-      console.log('Resources data received and processed with costs:', resourcesData);
-      console.log('Total resources:', totalResources);
-      console.log('Total resources cost:', totalResourcesCost);
       
-      // Log recursos com custos atribuídos
+      console.log('Resources with costs assigned:');
       const resourcesWithCosts = resourcesData.filter(r => r.cost && r.cost > 0);
-      console.log(`Recursos com custos atribuídos: ${resourcesWithCosts.length}`);
-      resourcesWithCosts.slice(0, 5).forEach(r => {
-        console.log(`- ${r.name}: ${r.cost} (${r.type})`);
+      resourcesWithCosts.forEach(r => {
+        console.log(`- ${r.name} (${r.type}): R$ ${r.cost}`);
       });
+      
+      console.log(`Total: ${resourcesWithCosts.length}/${resourcesData.length} resources have costs assigned`);
+      console.log('=== END DEBUG ===');
     }
-    if (budgetsData) {
-      console.log('Budgets data received from database:', budgetsData);
-      console.log('Total budget:', totalBudget);
-    }
-  }, [costData, resourcesData, budgetsData, totalSpend, totalResources, totalBudget, totalResourcesCost, dateRange]);
+  }, [costData, resourcesData]);
 
   return {
     // Data
