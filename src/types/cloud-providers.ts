@@ -23,6 +23,9 @@ export interface CostData {
   currency: string;
   service?: string;
   region?: string;
+  resourceId?: string;
+  resourceName?: string;
+  resourceGroup?: string;
 }
 
 export interface ResourceData {
