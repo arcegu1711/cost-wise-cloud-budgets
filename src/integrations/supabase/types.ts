@@ -9,6 +9,162 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cloud_budgets: {
+        Row: {
+          amount: number
+          budget_id: string
+          created_at: string
+          id: string
+          name: string
+          period: string
+          provider: string
+          spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          budget_id: string
+          created_at?: string
+          id?: string
+          name: string
+          period: string
+          provider: string
+          spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          budget_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          period?: string
+          provider?: string
+          spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cloud_connections: {
+        Row: {
+          created_at: string
+          credentials: Json
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credentials: Json
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cloud_cost_data: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          date: string
+          id: string
+          provider: string
+          region: string | null
+          service: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          date: string
+          id?: string
+          provider: string
+          region?: string | null
+          service: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          date?: string
+          id?: string
+          provider?: string
+          region?: string | null
+          service?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cloud_resources: {
+        Row: {
+          cost: number | null
+          created_at: string
+          id: string
+          name: string
+          provider: string
+          region: string | null
+          resource_id: string
+          status: string | null
+          tags: Json | null
+          type: string
+          updated_at: string
+          user_id: string
+          utilization: number | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          name: string
+          provider: string
+          region?: string | null
+          resource_id: string
+          status?: string | null
+          tags?: Json | null
+          type: string
+          updated_at?: string
+          user_id: string
+          utilization?: number | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          name?: string
+          provider?: string
+          region?: string | null
+          resource_id?: string
+          status?: string | null
+          tags?: Json | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+          utilization?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

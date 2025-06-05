@@ -2,39 +2,92 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cloudService } from '@/services/cloud-integration';
+import { supabaseCloudService } from '@/services/supabase-cloud-service';
 import { CostData, ResourceData, BudgetData } from '@/types/cloud-providers';
 import { useCloudConnections } from './useCloudConnections';
+import { useToast } from '@/hooks/use-toast';
 
 export const useCloudData = () => {
   const { getConnectedProviders } = useCloudConnections();
+  const { toast } = useToast();
   const [dateRange, setDateRange] = useState({
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
 
-  // Query for cost data
+  // Query para dados de custo do banco de dados
   const { data: costData, isLoading: costLoading, error: costError } = useQuery({
-    queryKey: ['cloudCosts', dateRange.startDate, dateRange.endDate, getConnectedProviders()],
-    queryFn: () => cloudService.getAllCostData(dateRange.startDate, dateRange.endDate),
+    queryKey: ['cloudCosts', getConnectedProviders()],
+    queryFn: () => supabaseCloudService.getCostData(),
     enabled: getConnectedProviders().length > 0,
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });
 
-  // Query for resources
+  // Query para recursos do banco de dados
   const { data: resourcesData, isLoading: resourcesLoading, error: resourcesError } = useQuery({
     queryKey: ['cloudResources', getConnectedProviders()],
-    queryFn: () => cloudService.getAllResources(),
+    queryFn: () => supabaseCloudService.getResources(),
     enabled: getConnectedProviders().length > 0,
     refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
   });
 
-  // Query for budgets
+  // Query para orçamentos do banco de dados
   const { data: budgetsData, isLoading: budgetsLoading, error: budgetsError } = useQuery({
     queryKey: ['cloudBudgets', getConnectedProviders()],
-    queryFn: () => cloudService.getAllBudgets(),
+    queryFn: () => supabaseCloudService.getBudgets(),
     enabled: getConnectedProviders().length > 0,
     refetchInterval: 15 * 60 * 1000, // Refetch every 15 minutes
   });
+
+  // Função para sincronizar dados dos provedores com o banco
+  const syncCloudData = async () => {
+    const connectedProviders = getConnectedProviders();
+    if (connectedProviders.length === 0) return;
+
+    try {
+      // Busca dados atualizados dos provedores
+      const [newCostData, newResourcesData, newBudgetsData] = await Promise.all([
+        cloudService.getAllCostData(dateRange.startDate, dateRange.endDate),
+        cloudService.getAllResources(),
+        cloudService.getAllBudgets()
+      ]);
+
+      // Salva os dados no banco
+      await Promise.all([
+        ...Object.entries(newCostData).map(([provider, costs]) => 
+          supabaseCloudService.saveCostData(provider, costs)
+        ),
+        ...connectedProviders.map(provider => {
+          const providerResources = newResourcesData.filter(r => r.provider === provider);
+          return supabaseCloudService.saveResources(provider, providerResources);
+        }),
+        ...connectedProviders.map(provider => {
+          const providerBudgets = newBudgetsData.filter(b => b.provider === provider);
+          return supabaseCloudService.saveBudgets(provider, providerBudgets);
+        })
+      ]);
+
+      toast({
+        title: "Dados sincronizados",
+        description: "Dados dos provedores de nuvem atualizados com sucesso.",
+      });
+
+    } catch (error) {
+      console.error('Error syncing cloud data:', error);
+      toast({
+        title: "Erro na sincronização",
+        description: "Não foi possível sincronizar os dados dos provedores.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Sincroniza automaticamente quando provedores são conectados
+  useEffect(() => {
+    if (getConnectedProviders().length > 0) {
+      syncCloudData();
+    }
+  }, [getConnectedProviders().join(','), dateRange.startDate, dateRange.endDate]);
 
   // Calculate totals and metrics
   const totalSpend = Object.values(costData || {})
@@ -82,6 +135,9 @@ export const useCloudData = () => {
     
     // Date range control
     dateRange,
-    setDateRange
+    setDateRange,
+    
+    // Manual sync function
+    syncCloudData
   };
 };

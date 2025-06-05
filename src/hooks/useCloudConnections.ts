@@ -1,22 +1,18 @@
 
 import { useState, useEffect } from 'react';
 import { cloudService } from '@/services/cloud-integration';
+import { supabaseCloudService } from '@/services/supabase-cloud-service';
 import { CloudCredentials } from '@/types/cloud-providers';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConnectionStatus {
   [provider: string]: boolean | null;
 }
 
-interface StoredConnection {
-  provider: 'aws' | 'azure' | 'gcp';
-  credentials: CloudCredentials;
-  status: boolean;
-  connectedAt: string;
-}
-
 export const useCloudConnections = () => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({});
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   // Load stored connections on mount
   useEffect(() => {
@@ -25,62 +21,64 @@ export const useCloudConnections = () => {
 
   const loadStoredConnections = async () => {
     try {
-      const stored = localStorage.getItem('cloudConnections');
-      if (stored) {
-        const connections: StoredConnection[] = JSON.parse(stored);
-        const status: ConnectionStatus = {};
-        
-        for (const connection of connections) {
-          // Re-add the provider to cloudService
-          cloudService.addProvider(connection.provider, connection.credentials);
-          status[connection.provider] = connection.status;
-        }
-        
-        setConnectionStatus(status);
+      const connections = await supabaseCloudService.getConnections();
+      const status: ConnectionStatus = {};
+      
+      for (const connection of connections) {
+        // Re-add the provider to cloudService
+        cloudService.addProvider(connection.provider as 'aws' | 'azure' | 'gcp', connection.credentials as CloudCredentials);
+        status[connection.provider] = connection.is_active;
       }
+      
+      setConnectionStatus(status);
     } catch (error) {
       console.error('Error loading stored connections:', error);
+      toast({
+        title: "Erro ao carregar conexões",
+        description: "Não foi possível carregar as conexões salvas.",
+        variant: "destructive",
+      });
     }
   };
 
-  const saveConnection = (provider: 'aws' | 'azure' | 'gcp', credentials: CloudCredentials, status: boolean) => {
+  const saveConnection = async (provider: 'aws' | 'azure' | 'gcp', credentials: CloudCredentials, status: boolean) => {
     try {
-      const stored = localStorage.getItem('cloudConnections');
-      let connections: StoredConnection[] = stored ? JSON.parse(stored) : [];
-      
-      // Remove existing connection for this provider
-      connections = connections.filter(conn => conn.provider !== provider);
+      await supabaseCloudService.saveConnection(provider, credentials, status);
+      setConnectionStatus(prev => ({ ...prev, [provider]: status }));
       
       if (status) {
-        // Add new connection
-        connections.push({
-          provider,
-          credentials,
-          status,
-          connectedAt: new Date().toISOString()
+        toast({
+          title: "Conexão salva",
+          description: `Conexão com ${provider.toUpperCase()} salva com sucesso.`,
         });
       }
-      
-      localStorage.setItem('cloudConnections', JSON.stringify(connections));
-      setConnectionStatus(prev => ({ ...prev, [provider]: status }));
     } catch (error) {
       console.error('Error saving connection:', error);
+      toast({
+        title: "Erro ao salvar conexão",
+        description: "Não foi possível salvar a conexão.",
+        variant: "destructive",
+      });
     }
   };
 
-  const removeConnection = (provider: string) => {
+  const removeConnection = async (provider: string) => {
     try {
-      const stored = localStorage.getItem('cloudConnections');
-      if (stored) {
-        let connections: StoredConnection[] = JSON.parse(stored);
-        connections = connections.filter(conn => conn.provider !== provider);
-        localStorage.setItem('cloudConnections', JSON.stringify(connections));
-      }
-      
+      await supabaseCloudService.removeConnection(provider);
       cloudService.removeProvider(provider);
       setConnectionStatus(prev => ({ ...prev, [provider]: null }));
+      
+      toast({
+        title: "Conexão removida",
+        description: `Conexão com ${provider.toUpperCase()} removida com sucesso.`,
+      });
     } catch (error) {
       console.error('Error removing connection:', error);
+      toast({
+        title: "Erro ao remover conexão",
+        description: "Não foi possível remover a conexão.",
+        variant: "destructive",
+      });
     }
   };
 

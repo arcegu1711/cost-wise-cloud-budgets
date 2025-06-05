@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cloudService } from '@/services/cloud-integration';
 import { CloudCredentials } from '@/types/cloud-providers';
-import { Cloud, CheckCircle, XCircle, Loader2, Trash2, Activity, Database, DollarSign } from 'lucide-react';
+import { Cloud, CheckCircle, XCircle, Loader2, Trash2, Activity, Database, DollarSign, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCloudConnections } from '@/hooks/useCloudConnections';
 import { useCloudData } from '@/hooks/useCloudData';
@@ -33,7 +33,8 @@ export const CloudConnectionManager = () => {
     isLoading: dataLoading,
     costLoading,
     resourcesLoading,
-    budgetsLoading
+    budgetsLoading,
+    syncCloudData
   } = useCloudData();
   
   const { toast } = useToast();
@@ -46,8 +47,8 @@ export const CloudConnectionManager = () => {
       const testResult = await cloudService.testAllConnections();
       const isConnected = testResult[provider];
       
-      // Save connection to localStorage
-      saveConnection(provider, { ...credentials, provider } as CloudCredentials, isConnected);
+      // Save connection to database
+      await saveConnection(provider, { ...credentials, provider } as CloudCredentials, isConnected);
       
       if (isConnected) {
         toast({
@@ -59,6 +60,9 @@ export const CloudConnectionManager = () => {
         if (provider === 'aws') setAwsCredentials({});
         if (provider === 'azure') setAzureCredentials({});
         if (provider === 'gcp') setGcpCredentials({});
+        
+        // Trigger data sync
+        setTimeout(() => syncCloudData(), 1000);
       } else {
         toast({
           title: "Erro de conexão",
@@ -68,7 +72,7 @@ export const CloudConnectionManager = () => {
       }
     } catch (error) {
       console.error(`Failed to connect to ${provider}:`, error);
-      saveConnection(provider, { ...credentials, provider } as CloudCredentials, false);
+      await saveConnection(provider, { ...credentials, provider } as CloudCredentials, false);
       toast({
         title: "Erro de conexão",
         description: `Erro ao conectar: ${error}`,
@@ -79,12 +83,16 @@ export const CloudConnectionManager = () => {
     }
   };
 
-  const handleDisconnect = (provider: string) => {
-    removeConnection(provider);
+  const handleDisconnect = async (provider: string) => {
+    await removeConnection(provider);
+  };
+
+  const handleSyncData = async () => {
     toast({
-      title: "Provedor desconectado",
-      description: `Desconectado do ${provider.toUpperCase()}`,
+      title: "Sincronizando dados",
+      description: "Buscando dados atualizados dos provedores...",
     });
+    await syncCloudData();
   };
 
   const getStatusBadge = (provider: string) => {
@@ -149,12 +157,23 @@ export const CloudConnectionManager = () => {
       {getConnectedProviders().length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Activity className="h-5 w-5" />
-              <span>Status de Conexão e Dados</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5" />
+                <CardTitle>Status de Conexão e Dados</CardTitle>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncData}
+                disabled={dataLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${dataLoading ? 'animate-spin' : ''}`} />
+                Sincronizar Dados
+              </Button>
+            </div>
             <CardDescription>
-              Monitor em tempo real das conexões e carregamento de dados
+              Dados persistidos no banco de dados e atualizados automaticamente
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -217,10 +236,10 @@ export const CloudConnectionManager = () => {
                         {dataLoading ? (
                           <div className="flex items-center space-x-1">
                             <Loader2 className="h-3 w-3 animate-spin" />
-                            <span>Carregando dados...</span>
+                            <span>Sincronizando dados...</span>
                           </div>
                         ) : (
-                          <span>Dados atualizados em tempo real</span>
+                          <span>Dados persistidos no banco de dados</span>
                         )}
                       </div>
                     </div>
