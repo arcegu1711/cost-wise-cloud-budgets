@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Server, Database, HardDrive, Zap } from "lucide-react";
 
 export const getTypeIcon = (type: string) => {
