@@ -32,6 +32,12 @@ const Index = () => {
   const potentialSavings = totalSpend * 0.15;
   const remainingBudget = totalBudget - totalBudgetSpent;
 
+  console.log('=== INDEX PAGE DEBUG ===');
+  console.log('Total spend from useCloudData:', totalSpend);
+  console.log('Connected providers:', connectedProviders);
+  console.log('Is loading:', isLoading);
+  console.log('=== END INDEX DEBUG ===');
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -73,7 +79,7 @@ const Index = () => {
                 ) : connectedProviders.length > 0 ? (
                   <>
                     <div className="text-2xl font-bold">
-                      {formatCurrencyCompact(totalSpend)}
+                      {formatCurrency(totalSpend)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {totalSpend > 0 ? (
@@ -146,7 +152,7 @@ const Index = () => {
                 ) : connectedProviders.length > 0 && totalSpend > 0 ? (
                   <>
                     <div className="text-2xl font-bold text-green-600">
-                      {formatCurrencyCompact(potentialSavings)}
+                      {formatCurrency(potentialSavings)}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Economia potencial mensal
